@@ -1,0 +1,39 @@
+<style id="v13ImportFixStyles">
+#importModal{z-index:10050!important}
+</style>
+<script id="v13ImportFixScript">
+(function(){
+  function showImportModal(){
+    var modal=document.getElementById('importModal');
+    if(!modal){
+      try{showToast('Import window is unavailable. Please restart Lead Hopper.',[],2600);}catch(e){}
+      return false;
+    }
+    var menu=document.getElementById('v13MenuOverlay');
+    if(menu) menu.classList.add('hidden');
+    modal.classList.remove('hidden');
+    modal.style.display='flex';
+    modal.style.zIndex='10050';
+    var format=document.getElementById('importFormat');
+    if(format && !format.value) format.value='csv';
+    return true;
+  }
+  window.openImport=showImportModal;
+  var oldClose=window.closeImport;
+  window.closeImport=function(){
+    var modal=document.getElementById('importModal');
+    if(modal){modal.classList.add('hidden');modal.style.display='';}
+    else if(typeof oldClose==='function') oldClose();
+  };
+  document.addEventListener('click',function(e){
+    var btn=e.target&&e.target.closest?e.target.closest('button'):null;
+    if(!btn) return;
+    var label=(btn.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+    if(label==='import leads' || label.endsWith(' import leads')){
+      e.preventDefault();
+      e.stopPropagation();
+      showImportModal();
+    }
+  },true);
+})();
+</script>
