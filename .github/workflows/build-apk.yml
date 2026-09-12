@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore Lead Hopper V12 HTML
+      - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
       - name: Set up Java 17
