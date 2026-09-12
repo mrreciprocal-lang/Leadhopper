@@ -93,15 +93,17 @@ jobs:
           print('Packaged HTML structure OK; V17 notes and compact Next Lead patch present')
           PY
 
-      - name: Validate V17 Android identity and launcher icon
+      - name: Validate 1.7.0 Android identity and adaptive launcher icon
         run: |
-          grep -q 'versionCode = 17' app/build.gradle.kts
+          grep -q 'versionCode = 18' app/build.gradle.kts
           grep -q 'versionName = "1.7.0"' app/build.gradle.kts
-          grep -q 'android:icon="@drawable/leadhopper_tornado_icon"' app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@drawable/leadhopper_tornado_icon"' app/src/main/AndroidManifest.xml
+          grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' app/src/main/AndroidManifest.xml
+          grep -q '@drawable/leadhopper_tornado_icon' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@drawable/leadhopper_tornado_icon' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
           grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
           test -s app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp
-          echo 'V17 identity, privacy hardening, and edge-to-edge tornado bitmap present'
+          echo 'Lead Hopper 1.7.0 build 18 and adaptive tornado icon resources present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -120,17 +122,17 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build V17 release and installable debug APKs
+      - name: Build Lead Hopper 1.7.0 release and debug APKs
         run: gradle --no-daemon assembleRelease assembleDebug
 
-      - name: Prepare installable V17 APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk LeadHopper-V17-installable.apk
+      - name: Prepare installable Lead Hopper 1.7.0 APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk LeadHopper-1.7.0-installable.apk
 
-      - name: Align unsigned V17 release APK
+      - name: Align unsigned Lead Hopper 1.7.0 release APK
         run: |
           $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 \
             app/build/outputs/apk/release/app-release-unsigned.apk \
-            LeadHopper-V17-release-unsigned-aligned.apk
+            LeadHopper-1.7.0-release-unsigned-aligned.apk
 
       - name: Package apksigner tool
         run: |
@@ -139,18 +141,18 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tool/lib/
           chmod +x signing-tool/apksigner
 
-      - name: Upload installable V17 APK
+      - name: Upload installable Lead Hopper 1.7.0 APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-V17-installable
-          path: LeadHopper-V17-installable.apk
+          name: LeadHopper-1.7.0-installable
+          path: LeadHopper-1.7.0-installable.apk
           if-no-files-found: error
 
-      - name: Upload unsigned V17 release APK
+      - name: Upload unsigned Lead Hopper 1.7.0 release APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-V17-release-unsigned
-          path: LeadHopper-V17-release-unsigned-aligned.apk
+          name: LeadHopper-1.7.0-release-unsigned
+          path: LeadHopper-1.7.0-release-unsigned-aligned.apk
           if-no-files-found: error
 
       - name: Upload apksigner tool
