@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore edge-to-edge tornado launcher artwork
+      - name: Restore tornado launcher artwork
         run: |
           mkdir -p app/src/main/res/drawable-nodpi
           base64 -d app/icon-src/leadhopper_tornado_fill_192.webp.b64 > app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp
@@ -20,90 +20,62 @@ jobs:
           from pathlib import Path
           p=Path('app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp')
           b=p.read_bytes()
-          assert len(b) > 8000, f'Launcher artwork unexpectedly small: {len(b)} bytes'
-          assert b[:4] == b'RIFF' and b[8:12] == b'WEBP', 'Launcher artwork is not a valid WebP container'
-          print('Verified edge-to-edge tornado launcher artwork:', len(b), 'bytes')
+          assert len(b) > 8000
+          assert b[:4] == b'RIFF' and b[8:12] == b'WEBP'
           PY
 
       - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
-      - name: Apply tested V13-V17 patches safely
+      - name: Apply tested patches safely
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          app = Path('app/src/main/assets/index.html')
-          fragments = [
-              ('v13HotfixScript', 'v13_hotfix.html'),
-              ('v13LayoutOrderScript', 'v13_layout_order.html'),
-              ('v13ImportFixScript', 'v13_import_fix.html'),
-              ('v14CustomPopupDismissScript', 'v14_custom_popup_dismiss.html'),
-              ('v14CallbackAutoAdvanceScript', 'v14_callback_autoadvance.html'),
-              ('v16HopperUiRepairScript', 'v16_hopper_ui_repair.html'),
-              ('v17UiNotesScript', 'v17_ui_notes.html'),
-          ]
-          text = app.read_text(encoding='utf-8')
-
-          def insert_before_final_body(document, fragment):
-              head, sep, tail = document.rpartition('</body>')
-              if not sep:
-                  raise RuntimeError('Final </body> tag not found')
-              return head + fragment + '\n</body>' + tail
-
-          for marker, filename in fragments:
+          app=Path('app/src/main/assets/index.html')
+          fragments=[('v13HotfixScript','v13_hotfix.html'),('v13LayoutOrderScript','v13_layout_order.html'),('v13ImportFixScript','v13_import_fix.html'),('v14CustomPopupDismissScript','v14_custom_popup_dismiss.html'),('v14CallbackAutoAdvanceScript','v14_callback_autoadvance.html'),('v16HopperUiRepairScript','v16_hopper_ui_repair.html'),('v17UiNotesScript','v17_ui_notes.html')]
+          text=app.read_text(encoding='utf-8')
+          def insert(document,fragment):
+              head,sep,tail=document.rpartition('</body>')
+              if not sep: raise RuntimeError('Final </body> tag not found')
+              return head+fragment+'\n</body>'+tail
+          for marker,filename in fragments:
               if f'id="{marker}"' not in text:
-                  text = insert_before_final_body(text, Path('app/src/main/assets', filename).read_text(encoding='utf-8'))
-
-          app.write_text(text, encoding='utf-8')
+                  text=insert(text,Path('app/src/main/assets',filename).read_text(encoding='utf-8'))
+          app.write_text(text,encoding='utf-8')
           PY
 
       - name: Validate packaged HTML structure
         run: |
           python - <<'PY'
           from pathlib import Path
-          text = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
-
-          markers = [
-              'v13HotfixScript',
-              'v13LayoutOrderScript',
-              'v13ImportFixScript',
-              'v14CustomPopupDismissScript',
-              'v14CallbackAutoAdvanceScript',
-              'v16HopperUiRepairScript',
-              'v17UiNotesScript',
-          ]
-          init = text.find('function init()')
-          final_body = text.rfind('</body>')
-          final_html = text.rfind('</html>')
+          text=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          markers=['v13HotfixScript','v13LayoutOrderScript','v13ImportFixScript','v14CustomPopupDismissScript','v14CallbackAutoAdvanceScript','v16HopperUiRepairScript','v17UiNotesScript']
+          init=text.find('function init()'); final_body=text.rfind('</body>'); final_html=text.rfind('</html>')
           for marker in markers:
-              pos=text.find(f'id="{marker}"')
-              assert pos > init, f'{marker} was injected inside the main JavaScript source'
-              assert final_body > pos, f'{marker} is not inside the real document body'
-
-          assert final_html > final_body, 'Malformed document ending'
-          assert text.rstrip().endswith('</html>'), 'Document does not end with </html>'
-          assert 'window.openImport=showImportModal' in text, 'Import button recovery handler missing'
-          assert 'v14CloseCustomPopup' in text, 'Custom popup outside-tap handler missing'
-          assert '__LH_V14_CALLBACK_AUTO_ADVANCE__' in text, 'Callback auto-advance handler missing'
-          assert '__LH_V16_HOPPER_UI_REPAIR__' in text, 'V16 hopper UI repair missing'
-          assert '__LH_V17_UI_NOTES__' in text, 'V17 notes/compact Next patch missing'
-          assert 'v17LeadNotesInput' in text, 'Persistent lead notes field missing'
-          assert 'width:144px!important' in text, 'Compact Next Lead sizing missing'
-          print('Packaged HTML structure OK; V17 notes and compact Next Lead patch present')
+              pos=text.find(f'id="{marker}"'); assert pos>init; assert final_body>pos
+          assert final_html>final_body and text.rstrip().endswith('</html>')
+          assert 'window.openImport=showImportModal' in text
+          assert 'v14CloseCustomPopup' in text
+          assert '__LH_V14_CALLBACK_AUTO_ADVANCE__' in text
+          assert '__LH_V16_HOPPER_UI_REPAIR__' in text
+          assert '__LH_V17_UI_NOTES__' in text
+          assert 'v17LeadNotesInput' in text
+          assert 'width:144px!important' in text
           PY
 
-      - name: Validate 1.7.0 Android identity and adaptive launcher icon
+      - name: Validate 1.7.0 build 19 and fitted adaptive icon
         run: |
-          grep -q 'versionCode = 18' app/build.gradle.kts
+          grep -q 'versionCode = 19' app/build.gradle.kts
           grep -q 'versionName = "1.7.0"' app/build.gradle.kts
           grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' app/src/main/AndroidManifest.xml
-          grep -q '@drawable/leadhopper_tornado_icon' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          grep -q '@drawable/leadhopper_tornado_icon' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
+          grep -q '@drawable/leadhopper_icon_foreground_scaled' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@drawable/leadhopper_icon_foreground_scaled' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
+          grep -q 'android:width="76dp"' app/src/main/res/drawable/leadhopper_icon_foreground_scaled.xml
+          grep -q 'android:height="76dp"' app/src/main/res/drawable/leadhopper_icon_foreground_scaled.xml
           grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
           test -s app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp
-          echo 'Lead Hopper 1.7.0 build 18 and adaptive tornado icon resources present'
+          echo 'Lead Hopper 1.7.0 build 19 with fitted adaptive tornado foreground present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -130,9 +102,7 @@ jobs:
 
       - name: Align unsigned Lead Hopper 1.7.0 release APK
         run: |
-          $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 \
-            app/build/outputs/apk/release/app-release-unsigned.apk \
-            LeadHopper-1.7.0-release-unsigned-aligned.apk
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk LeadHopper-1.7.0-release-unsigned-aligned.apk
 
       - name: Package apksigner tool
         run: |
