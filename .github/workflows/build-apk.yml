@@ -15,19 +15,50 @@ jobs:
       - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
-      - name: Apply tested V13 hotfix
+      - name: Apply tested V13 patches safely
         run: |
           python - <<'PY'
           from pathlib import Path
+
           app = Path('app/src/main/assets/index.html')
           hot = Path('app/src/main/assets/v13_hotfix.html').read_text(encoding='utf-8')
           layout = Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
           text = app.read_text(encoding='utf-8')
+
+          def insert_before_final_body(document, fragment):
+              head, sep, tail = document.rpartition('</body>')
+              if not sep:
+                  raise RuntimeError('Final </body> tag not found')
+              return head + fragment + '\n</body>' + tail
+
           if 'id="v13HotfixScript"' not in text:
-              text = text.replace('</body>', hot + '\n</body>')
+              text = insert_before_final_body(text, hot)
           if 'id="v13LayoutOrderScript"' not in text:
-              text = text.replace('</body>', layout + '\n</body>')
+              text = insert_before_final_body(text, layout)
+
           app.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate packaged HTML structure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+
+          # The daily-report template intentionally contains a literal </body></html>.
+          # V13 patches must be after the application's original JS, never inside it.
+          hot = text.find('id="v13HotfixScript"')
+          layout = text.find('id="v13LayoutOrderScript"')
+          init = text.find('function init()')
+          final_body = text.rfind('</body>')
+          final_html = text.rfind('</html>')
+
+          assert hot > init, 'Hotfix was injected inside the main JavaScript source'
+          assert layout > init, 'Layout patch was injected inside the main JavaScript source'
+          assert final_body > hot and final_body > layout, 'V13 patches are not inside the real document body'
+          assert final_html > final_body, 'Malformed document ending'
+          assert text.rstrip().endswith('</html>'), 'Document does not end with </html>'
+          print('Packaged HTML structure OK')
           PY
 
       - name: Set up Java 17
