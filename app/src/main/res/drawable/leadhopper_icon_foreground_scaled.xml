@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The raster source already contains internal safe-area padding. 72dp keeps
+         the meaningful phone / hopper / hashtag artwork inside Android's mask-safe region. -->
     <item
-        android:width="64dp"
-        android:height="64dp"
+        android:width="72dp"
+        android:height="72dp"
         android:gravity="center"
-        android:drawable="@drawable/leadhopper_tornado_foreground" />
+        android:drawable="@drawable/leadhopper_icon_foreground_art" />
 </layer-list>
