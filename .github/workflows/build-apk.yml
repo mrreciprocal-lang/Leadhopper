@@ -47,15 +47,18 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+      - name: Build release APK
+        run: gradle --no-daemon assembleRelease
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk LeadHopper-v1.0.apk
+      - name: Align unsigned release APK
+        run: |
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            LeadHopper-V13-release-unsigned-aligned.apk
 
-      - name: Upload APK
+      - name: Upload unsigned release APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-v1.0
-          path: LeadHopper-v1.0.apk
+          name: LeadHopper-V13-release-unsigned
+          path: LeadHopper-V13-release-unsigned-aligned.apk
           if-no-files-found: error
