@@ -21,9 +21,12 @@ jobs:
           from pathlib import Path
           app = Path('app/src/main/assets/index.html')
           hot = Path('app/src/main/assets/v13_hotfix.html').read_text(encoding='utf-8')
+          layout = Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
           text = app.read_text(encoding='utf-8')
           if 'id="v13HotfixScript"' not in text:
               text = text.replace('</body>', hot + '\n</body>')
+          if 'id="v13LayoutOrderScript"' not in text:
+              text = text.replace('</body>', layout + '\n</body>')
           app.write_text(text, encoding='utf-8')
           PY
 
