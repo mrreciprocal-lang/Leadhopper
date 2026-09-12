@@ -1,0 +1,31 @@
+<!-- V14 callback auto-advance patch -->
+<script id="v14CallbackAutoAdvanceScript">
+(function(){
+  if(window.__LH_V14_CALLBACK_AUTO_ADVANCE__) return;
+  window.__LH_V14_CALLBACK_AUTO_ADVANCE__ = true;
+
+  const baseSaveCallback = window.saveCallback;
+  window.saveCallback = function(){
+    const lead = typeof getCurrentLead === 'function' ? getCurrentLead() : null;
+    const leadId = lead && lead.id;
+    const before = new Set((state.schedule || []).map(x => x.id));
+
+    baseSaveCallback();
+
+    if(!leadId) return;
+    const created = (state.schedule || []).find(x =>
+      x.type === 'callback' && x.leadId === leadId && !before.has(x.id)
+    );
+    if(!created) return;
+
+    // A saved callback is a completed disposition for the current pass.
+    // Move straight to the next eligible lead so another disposition cannot
+    // accidentally be applied to the callback lead.
+    setTimeout(function(){
+      try{
+        if(typeof nextLead === 'function') nextLead();
+      }catch(_){ }
+    }, 0);
+  };
+})();
+</script>
