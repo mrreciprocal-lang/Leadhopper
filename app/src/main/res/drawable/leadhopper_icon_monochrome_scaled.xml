@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="72dp"
-        android:height="72dp"
+        android:width="64dp"
+        android:height="64dp"
         android:gravity="center"
-        android:drawable="@drawable/leadhopper_icon_monochrome" />
+        android:drawable="@drawable/leadhopper_icon_monochrome_art" />
 </layer-list>
