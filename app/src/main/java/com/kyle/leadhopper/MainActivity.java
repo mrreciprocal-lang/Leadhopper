@@ -41,26 +41,76 @@ public class MainActivity extends Activity {
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
-                if (fileCallback != null) fileCallback.onReceiveValue(null); fileCallback = callback;
-                Intent intent = params.createIntent(); intent.addCategory(Intent.CATEGORY_OPENABLE);
-                try { startActivityForResult(intent, FILE_CHOOSER); } catch (Exception e) { fileCallback = null; return false; } return true;
+                if (fileCallback != null) fileCallback.onReceiveValue(null);
+                fileCallback = callback;
+
+                // Use Android's document picker without a restrictive MIME filter.
+                // Some Android 13 file providers label .csv files as text/plain or
+                // application/octet-stream, which caused valid Lead Hopper CSVs to be
+                // greyed out when we relied on WebView's accept-type mapping.
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+                try {
+                    startActivityForResult(intent, FILE_CHOOSER);
+                } catch (Exception e) {
+                    fileCallback = null;
+                    Toast.makeText(MainActivity.this, "Could not open file picker.", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+                return true;
             }
         });
         webView.loadUrl("file:///android_asset/index.html");
     }
+
     public class AndroidBridge {
         @JavascriptInterface public void saveText(String filename, String text, String mime) {
-            pendingText = text == null ? "" : text; pendingMime = (mime == null || mime.isEmpty()) ? "text/plain" : mime;
-            runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT); i.addCategory(Intent.CATEGORY_OPENABLE); i.setType(pendingMime); i.putExtra(Intent.EXTRA_TITLE, filename == null ? "lead-hopper-export.txt" : filename); startActivityForResult(i, SAVE_FILE); });
+            pendingText = text == null ? "" : text;
+            pendingMime = (mime == null || mime.isEmpty()) ? "text/plain" : mime;
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType(pendingMime);
+                i.putExtra(Intent.EXTRA_TITLE, filename == null ? "lead-hopper-export.txt" : filename);
+                startActivityForResult(i, SAVE_FILE);
+            });
         }
     }
+
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER) {
-            if (fileCallback != null) { Uri[] out = null; if (resultCode == RESULT_OK && data != null) { if (data.getClipData() != null) { int n=data.getClipData().getItemCount(); out=new Uri[n]; for(int k=0;k<n;k++) out[k]=data.getClipData().getItemAt(k).getUri(); } else if(data.getData()!=null) out=new Uri[]{data.getData()}; } fileCallback.onReceiveValue(out); fileCallback=null; }
+            if (fileCallback != null) {
+                Uri[] out = null;
+                if (resultCode == RESULT_OK && data != null) {
+                    if (data.getClipData() != null) {
+                        int n = data.getClipData().getItemCount();
+                        out = new Uri[n];
+                        for (int k = 0; k < n; k++) out[k] = data.getClipData().getItemAt(k).getUri();
+                    } else if (data.getData() != null) {
+                        out = new Uri[]{data.getData()};
+                    }
+                }
+                fileCallback.onReceiveValue(out);
+                fileCallback = null;
+            }
         } else if (requestCode == SAVE_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            try (OutputStream os=getContentResolver().openOutputStream(data.getData())) { if(os!=null) os.write((pendingText==null?"":pendingText).getBytes(StandardCharsets.UTF_8)); Toast.makeText(this,"Saved.",Toast.LENGTH_SHORT).show(); } catch(Exception e) { Toast.makeText(this,"Save failed: "+e.getMessage(),Toast.LENGTH_LONG).show(); } finally { pendingText=null; pendingMime=null; }
+            try (OutputStream os = getContentResolver().openOutputStream(data.getData())) {
+                if (os != null) os.write((pendingText == null ? "" : pendingText).getBytes(StandardCharsets.UTF_8));
+                Toast.makeText(this, "Saved.", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            } finally {
+                pendingText = null;
+                pendingMime = null;
+            }
         }
     }
-    @Override public void onBackPressed() { if(webView!=null && webView.canGoBack()) webView.goBack(); else super.onBackPressed(); }
+
+    @Override public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) webView.goBack();
+        else super.onBackPressed();
+    }
 }
