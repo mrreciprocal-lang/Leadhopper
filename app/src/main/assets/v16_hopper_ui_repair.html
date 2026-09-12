@@ -1,0 +1,127 @@
+<style id="v16HopperUiRepairStyles">
+/* Restore the working lead metadata/counter presentation that the V13 compact hotfix hid. */
+#leadMeta{display:block!important}
+
+/* Keep Previous and Next in a stable two-column navigation row. */
+.v16-nav-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 172px!important;
+  align-items:center!important;
+  gap:10px!important;
+  flex-wrap:nowrap!important;
+}
+.v16-nav-row > .row{
+  min-width:0!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+}
+.v16-nav-row .next-wrap{
+  position:relative!important;
+  width:172px!important;
+  min-width:172px!important;
+  height:62px!important;
+  border-radius:16px!important;
+  overflow:hidden!important;
+  justify-self:end!important;
+}
+#btnNextLead{
+  width:100%!important;
+  max-width:none!important;
+  height:62px!important;
+  min-height:62px!important;
+  padding:7px 10px!important;
+  border-radius:16px!important;
+}
+#btnNextLead .btn-content{
+  padding:5px!important;
+  font-size:14px!important;
+}
+
+/* Restore the frosted lock instead of the V13 hotfix forcibly hiding it. */
+.v16-nav-row .next-wrap .frost-lock{
+  display:flex!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:30!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:16px!important;
+  background:rgba(19,27,47,.62)!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  backdrop-filter:blur(13px) saturate(135%)!important;
+  -webkit-backdrop-filter:blur(13px) saturate(135%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+.v16-nav-row .next-wrap .frost-lock.hidden{display:none!important}
+.v16-nav-row .next-wrap .lock-card{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  padding:5px 8px!important;
+}
+.v16-nav-row .next-wrap .lock-ico{font-size:17px!important;margin:0!important}
+.v16-nav-row .next-wrap .lock-title{font-size:12px!important;line-height:1.1!important}
+.v16-nav-row .next-wrap .lock-sub{display:none!important}
+
+@media(max-width:380px){
+  .v16-nav-row{grid-template-columns:minmax(0,1fr) 154px!important;gap:7px!important}
+  .v16-nav-row .next-wrap{width:154px!important;min-width:154px!important}
+}
+</style>
+<script id="v16HopperUiRepairScript">
+(function(){
+  if(window.__LH_V16_HOPPER_UI_REPAIR__) return;
+  window.__LH_V16_HOPPER_UI_REPAIR__ = true;
+
+  function stabilizeNav(){
+    const next=document.getElementById('btnNextLead');
+    const wrap=next && next.closest('.next-wrap');
+    const row=wrap && wrap.parentElement;
+    if(row) row.classList.add('v16-nav-row');
+  }
+
+  /*
+   * The original counter uses eligibleLeads(). A disposition such as Not Interested
+   * immediately removes the just-worked lead from that array while the UI deliberately
+   * keeps that lead visible until Next Lead is tapped. That made the visible lead become
+   * "Lead 0 of N". Count the held lead for display until navigation actually advances.
+   */
+  const oldRenderProgress=window.renderProgress;
+  window.renderProgress=function(){
+    const list=eligibleLeads();
+    const lead=getCurrentLead();
+    let total=list.length;
+    let zeroIndex=lead ? list.findIndex(x=>x.id===lead.id) : -1;
+
+    if(lead && zeroIndex<0 && state.holdLeadId===lead.id){
+      total += 1;
+      zeroIndex=Math.min(Math.max(0,Number(state.currentIndex)||0),Math.max(0,total-1));
+    }
+
+    const idx=lead ? (zeroIndex>=0 ? zeroIndex+1 : 0) : 0;
+    const pill=document.getElementById('progressPill');
+    if(pill) pill.innerHTML=`Lead <b>${idx}</b> of <b>${total}</b>`;
+    const sp=document.getElementById('speedPill');
+    if(sp) sp.textContent=(callsPerHour()).toFixed(1);
+  };
+
+  const oldRenderLead=window.renderLead;
+  window.renderLead=function(){
+    if(typeof oldRenderLead==='function') oldRenderLead();
+    stabilizeNav();
+    /* Re-assert the lock after all older render wrappers have run. */
+    const lead=getCurrentLead();
+    const ready=!!(lead && canAdvance(lead));
+    const frost=document.getElementById('nextFrost');
+    if(frost) frost.classList.toggle('hidden',ready);
+    const next=document.getElementById('btnNextLead');
+    if(next) next.disabled=!ready;
+    window.renderProgress();
+  };
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',stabilizeNav);
+  else stabilizeNav();
+})();
+</script>
