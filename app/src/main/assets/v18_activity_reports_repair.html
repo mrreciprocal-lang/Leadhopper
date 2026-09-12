@@ -1,0 +1,128 @@
+<style id="v18ActivityReportsRepairStyles">
+#tab-extras .v18-activity-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;padding:0 2px}#tab-extras .v18-activity-nav .btn{min-height:42px}.v18-home-menu-item{font-weight:800!important}
+</style>
+<script id="v18ActivityReportsRepairScript">
+(function(){
+  if(window.__LH_V18_ACTIVITY_REPORTS_REPAIR__) return;
+  window.__LH_V18_ACTIVITY_REPORTS_REPAIR__ = true;
+
+  const browserDownloadText = window.downloadText;
+  window.downloadText = function(filename, text, mime){
+    const safeName = filename || 'lead-hopper-export.txt';
+    const safeText = text == null ? '' : String(text);
+    const safeMime = mime || 'text/plain';
+    try{
+      if(window.AndroidBridge && typeof window.AndroidBridge.saveText === 'function'){
+        window.AndroidBridge.saveText(safeName, safeText, safeMime);
+        return true;
+      }
+    }catch(err){
+      try{ console.warn('Lead Hopper native save failed; using browser fallback.', err); }catch(_e){}
+    }
+    if(typeof browserDownloadText === 'function'){
+      browserDownloadText(safeName, safeText, safeMime);
+      return true;
+    }
+    try{ showToast('Could not start file save.', [], 2800); }catch(_e){}
+    return false;
+  };
+  try{ downloadText = window.downloadText; }catch(_e){}
+
+  const baseGenerateDailyReport = window.generateDailyReport;
+  window.generateDailyReport = function(){
+    try{
+      const nativeSave = !!(window.AndroidBridge && typeof window.AndroidBridge.saveText === 'function');
+      const out = baseGenerateDailyReport();
+      if(nativeSave){
+        setTimeout(function(){
+          try{ showToast('Choose where to save the daily report.', [], 3200); }catch(_e){}
+        }, 0);
+      }
+      return out;
+    }catch(err){
+      try{ console.error('Daily report generation failed.', err); }catch(_e){}
+      try{ showToast('Daily report could not be generated.', [], 3600); }catch(_e){}
+      return false;
+    }
+  };
+  try{ generateDailyReport = window.generateDailyReport; }catch(_e){}
+
+  window.exportActivityCSV = function(){
+    try{
+      initActivityDate();
+      const dayEl = document.getElementById('activityDate');
+      const day = dayEl && dayEl.value ? dayEl.value : ymdLocal(new Date());
+      if(dayEl && !dayEl.value) dayEl.value = day;
+      const start = new Date(day + 'T00:00:00');
+      const end = new Date(day + 'T23:59:59');
+      const rows = (state.activityLog || []).filter(function(x){
+        const t = new Date(x.t);
+        return t >= start && t <= end;
+      }).slice().sort(function(a,b){ return new Date(a.t) - new Date(b.t); });
+      const lines = [['time','leadName','phone','event','detail'].join(',')];
+      rows.forEach(function(x){
+        const lead = x.leadId ? state.leads.find(function(l){ return l.id === x.leadId; }) : null;
+        const name = lead ? ((safeText(lead.firstName) + ' ' + safeText(lead.lastName)).trim()) : '';
+        const phone = lead ? cleanPhone(lead.phone) : '';
+        const vals = [new Date(x.t).toISOString(), name, phone, x.type, x.detail || ''];
+        lines.push(vals.map(function(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }).join(','));
+      });
+      downloadText('activity_' + day + '.csv', lines.join('\n'), 'text/csv');
+      if(window.AndroidBridge && typeof window.AndroidBridge.saveText === 'function'){
+        setTimeout(function(){ try{ showToast('Choose where to save the activity CSV.', [], 3200); }catch(_e){} }, 0);
+      }
+      return true;
+    }catch(err){
+      try{ console.error('Activity CSV export failed.', err); }catch(_e){}
+      try{ showToast('Activity CSV could not be exported.', [], 3600); }catch(_e){}
+      return false;
+    }
+  };
+
+  window.v18GoHome = function(){
+    try{ if(typeof v13CloseMenu === 'function') v13CloseMenu(); }catch(_e){}
+    try{ setTab('hopper'); }catch(err){
+      try{
+        document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab === 'hopper'); });
+        ['hopper','leads','schedule','extras'].forEach(function(k){
+          const el = document.getElementById('tab-' + k);
+          if(el) el.classList.toggle('hidden', k !== 'hopper');
+        });
+      }catch(_e){}
+    }
+    try{ window.scrollTo(0,0); }catch(_e){}
+  };
+
+  const menu = document.querySelector('#v13MenuOverlay .v13-menu');
+  if(menu && !document.getElementById('v18MenuHome')){
+    const home = document.createElement('button');
+    home.id = 'v18MenuHome';
+    home.className = 'v13-menu-item v18-home-menu-item';
+    home.type = 'button';
+    home.textContent = '🏠 Lead Hopper';
+    home.addEventListener('click', window.v18GoHome);
+    const firstItem = menu.querySelector('.v13-menu-item');
+    if(firstItem) menu.insertBefore(home, firstItem); else menu.appendChild(home);
+  }
+
+  const extras = document.getElementById('tab-extras');
+  if(extras && !document.getElementById('v18ActivityNav')){
+    const nav = document.createElement('div');
+    nav.id = 'v18ActivityNav';
+    nav.className = 'v18-activity-nav';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'btn btn-ghost';
+    back.textContent = '← Back to Lead Hopper';
+    back.addEventListener('click', window.v18GoHome);
+    const menuButton = document.createElement('button');
+    menuButton.type = 'button';
+    menuButton.className = 'btn btn-ghost';
+    menuButton.textContent = '☰ Menu';
+    menuButton.addEventListener('click', function(){ try{ v13OpenMenu(); }catch(_e){} });
+    nav.appendChild(back);
+    nav.appendChild(menuButton);
+    extras.insertBefore(nav, extras.firstChild);
+  }
+})();
+</script>
