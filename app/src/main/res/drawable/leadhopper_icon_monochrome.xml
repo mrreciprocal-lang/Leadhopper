@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Simplified phone receiver: deliberately bold for Android themed-icon rendering. -->
+    <path
+        android:pathData="M24,45 C16,53 17,69 29,79 C39,88 54,88 64,80"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="11"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Hopper / vortex body and dark opening cutout. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M47,42 C56,36 78,36 89,42 C82,47 57,49 47,42 M49,46 C58,51 77,51 86,46 L76,76 C73,84 67,88 61,88 L54,82 C59,79 64,75 66,70 C60,67 57,63 55,59 C62,61 72,61 79,58 L82,50 C71,54 58,53 49,48 Z" />
+
+    <!-- Large readable incoming hashtag. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M51,17 H57 V25 H65 V17 H71 V25 H77 V31 H70 L69,37 H75 V43 H68 V51 H62 V43 H54 V51 H48 V43 H42 V37 H49 L50,31 H44 V25 H51 Z M56,31 L55,37 H63 L64,31 Z" />
+</vector>
