@@ -12,20 +12,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore verified tornado launcher artwork
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d app/icon-src/leadhopper_tornado_192.webp.b64 > app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp')
+          b=p.read_bytes()
+          assert len(b) > 8000, f'Launcher artwork unexpectedly small: {len(b)} bytes'
+          assert b[:4] == b'RIFF' and b[8:12] == b'WEBP', 'Launcher artwork is not a valid WebP container'
+          print('Verified tornado launcher artwork:', len(b), 'bytes')
+          PY
+
       - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
-      - name: Apply tested V13/V14 patches safely
+      - name: Apply tested V13-V16 patches safely
         run: |
           python - <<'PY'
           from pathlib import Path
 
           app = Path('app/src/main/assets/index.html')
-          hot = Path('app/src/main/assets/v13_hotfix.html').read_text(encoding='utf-8')
-          layout = Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
-          import_fix = Path('app/src/main/assets/v13_import_fix.html').read_text(encoding='utf-8')
-          custom_dismiss = Path('app/src/main/assets/v14_custom_popup_dismiss.html').read_text(encoding='utf-8')
-          callback_auto = Path('app/src/main/assets/v14_callback_autoadvance.html').read_text(encoding='utf-8')
+          fragments = [
+              ('v13HotfixScript', 'v13_hotfix.html'),
+              ('v13LayoutOrderScript', 'v13_layout_order.html'),
+              ('v13ImportFixScript', 'v13_import_fix.html'),
+              ('v14CustomPopupDismissScript', 'v14_custom_popup_dismiss.html'),
+              ('v14CallbackAutoAdvanceScript', 'v14_callback_autoadvance.html'),
+              ('v16HopperUiRepairScript', 'v16_hopper_ui_repair.html'),
+          ]
           text = app.read_text(encoding='utf-8')
 
           def insert_before_final_body(document, fragment):
@@ -34,16 +50,9 @@ jobs:
                   raise RuntimeError('Final </body> tag not found')
               return head + fragment + '\n</body>' + tail
 
-          if 'id="v13HotfixScript"' not in text:
-              text = insert_before_final_body(text, hot)
-          if 'id="v13LayoutOrderScript"' not in text:
-              text = insert_before_final_body(text, layout)
-          if 'id="v13ImportFixScript"' not in text:
-              text = insert_before_final_body(text, import_fix)
-          if 'id="v14CustomPopupDismissScript"' not in text:
-              text = insert_before_final_body(text, custom_dismiss)
-          if 'id="v14CallbackAutoAdvanceScript"' not in text:
-              text = insert_before_final_body(text, callback_auto)
+          for marker, filename in fragments:
+              if f'id="{marker}"' not in text:
+                  text = insert_before_final_body(text, Path('app/src/main/assets', filename).read_text(encoding='utf-8'))
 
           app.write_text(text, encoding='utf-8')
           PY
@@ -54,39 +63,42 @@ jobs:
           from pathlib import Path
           text = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
 
-          hot = text.find('id="v13HotfixScript"')
-          layout = text.find('id="v13LayoutOrderScript"')
-          import_fix = text.find('id="v13ImportFixScript"')
-          custom_dismiss = text.find('id="v14CustomPopupDismissScript"')
-          callback_auto = text.find('id="v14CallbackAutoAdvanceScript"')
+          markers = [
+              'v13HotfixScript',
+              'v13LayoutOrderScript',
+              'v13ImportFixScript',
+              'v14CustomPopupDismissScript',
+              'v14CallbackAutoAdvanceScript',
+              'v16HopperUiRepairScript',
+          ]
           init = text.find('function init()')
           final_body = text.rfind('</body>')
           final_html = text.rfind('</html>')
+          for marker in markers:
+              pos=text.find(f'id="{marker}"')
+              assert pos > init, f'{marker} was injected inside the main JavaScript source'
+              assert final_body > pos, f'{marker} is not inside the real document body'
 
-          assert hot > init, 'Hotfix was injected inside the main JavaScript source'
-          assert layout > init, 'Layout patch was injected inside the main JavaScript source'
-          assert import_fix > init, 'Import fix was injected inside the main JavaScript source'
-          assert custom_dismiss > init, 'Custom popup dismissal patch was injected inside the main JavaScript source'
-          assert callback_auto > init, 'Callback auto-advance patch was injected inside the main JavaScript source'
-          assert final_body > hot and final_body > layout and final_body > import_fix and final_body > custom_dismiss and final_body > callback_auto, 'Patches are not inside the real document body'
           assert final_html > final_body, 'Malformed document ending'
           assert text.rstrip().endswith('</html>'), 'Document does not end with </html>'
           assert 'window.openImport=showImportModal' in text, 'Import button recovery handler missing'
           assert 'v14CloseCustomPopup' in text, 'Custom popup outside-tap handler missing'
           assert '__LH_V14_CALLBACK_AUTO_ADVANCE__' in text, 'Callback auto-advance handler missing'
-          print('Packaged HTML structure OK; import, popup, and callback handlers present')
+          assert '__LH_V16_HOPPER_UI_REPAIR__' in text, 'V16 hopper UI repair missing'
+          assert 'v16-nav-row' in text, 'Stable Previous/Next layout missing'
+          assert 'total += 1' in text, 'Held-lead counter repair missing'
+          print('Packaged HTML structure OK; V16 counter, lock, layout, import, popup and callback handlers present')
           PY
 
-      - name: Validate V15 Android identity and tornado icon
+      - name: Validate V16 Android identity and launcher icon
         run: |
-          grep -q 'versionCode = 15' app/build.gradle.kts
-          grep -q 'versionName = "1.5.0"' app/build.gradle.kts
-          grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
+          grep -q 'versionCode = 16' app/build.gradle.kts
+          grep -q 'versionName = "1.6.0"' app/build.gradle.kts
+          grep -q 'android:icon="@drawable/leadhopper_tornado_icon"' app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/leadhopper_tornado_icon"' app/src/main/AndroidManifest.xml
           grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
-          grep -q '@drawable/leadhopper_icon_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          grep -q '@drawable/leadhopper_icon_foreground' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
-          test -s app/src/main/res/drawable-xxxhdpi/leadhopper_icon_foreground.webp
-          echo 'V15 identity, privacy hardening, and tornado icon resources present'
+          test -s app/src/main/res/drawable-nodpi/leadhopper_tornado_icon.webp
+          echo 'V16 identity, privacy hardening, and direct verified tornado bitmap present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -105,17 +117,17 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build V15 release and installable debug APKs
+      - name: Build V16 release and installable debug APKs
         run: gradle --no-daemon assembleRelease assembleDebug
 
-      - name: Prepare installable V15 APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk LeadHopper-V15-installable.apk
+      - name: Prepare installable V16 APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk LeadHopper-V16-installable.apk
 
-      - name: Align unsigned V15 release APK
+      - name: Align unsigned V16 release APK
         run: |
           $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 \
             app/build/outputs/apk/release/app-release-unsigned.apk \
-            LeadHopper-V15-release-unsigned-aligned.apk
+            LeadHopper-V16-release-unsigned-aligned.apk
 
       - name: Package apksigner tool
         run: |
@@ -124,18 +136,18 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tool/lib/
           chmod +x signing-tool/apksigner
 
-      - name: Upload installable V15 APK
+      - name: Upload installable V16 APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-V15-installable
-          path: LeadHopper-V15-installable.apk
+          name: LeadHopper-V16-installable
+          path: LeadHopper-V16-installable.apk
           if-no-files-found: error
 
-      - name: Upload unsigned V15 release APK
+      - name: Upload unsigned V16 release APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-V15-release-unsigned
-          path: LeadHopper-V15-release-unsigned-aligned.apk
+          name: LeadHopper-V16-release-unsigned
+          path: LeadHopper-V16-release-unsigned-aligned.apk
           if-no-files-found: error
 
       - name: Upload apksigner tool
