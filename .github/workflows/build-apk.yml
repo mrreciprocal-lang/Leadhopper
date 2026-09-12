@@ -15,6 +15,18 @@ jobs:
       - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
+      - name: Apply tested V13 hotfix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          app = Path('app/src/main/assets/index.html')
+          hot = Path('app/src/main/assets/v13_hotfix.html').read_text(encoding='utf-8')
+          text = app.read_text(encoding='utf-8')
+          if 'id="v13HotfixScript"' not in text:
+              text = text.replace('</body>', hot + '\n</body>')
+          app.write_text(text, encoding='utf-8')
+          PY
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
