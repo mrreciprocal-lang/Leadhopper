@@ -1,0 +1,55 @@
+<style id="v14CustomPopupDismissStyles">
+#v14CustomBackdrop{position:fixed;inset:0;z-index:940;background:rgba(0,0,0,.18);backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px)}
+#v14CustomBackdrop.hidden{display:none}
+#v13CustomPop{z-index:950!important}
+</style>
+<script id="v14CustomPopupDismissScript">
+(function(){
+  if(window.__LH_V14_CUSTOM_POPUP_DISMISS__) return;
+  window.__LH_V14_CUSTOM_POPUP_DISMISS__ = true;
+
+  const pop = document.getElementById('v13CustomPop');
+  if(!pop) return;
+
+  let backdrop = document.getElementById('v14CustomBackdrop');
+  if(!backdrop){
+    backdrop = document.createElement('div');
+    backdrop.id = 'v14CustomBackdrop';
+    backdrop.className = 'hidden';
+    backdrop.setAttribute('aria-hidden','true');
+    document.body.insertBefore(backdrop, pop);
+  }
+
+  function closeCustomPopup(){
+    pop.classList.add('hidden');
+    backdrop.classList.add('hidden');
+    backdrop.setAttribute('aria-hidden','true');
+  }
+
+  backdrop.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    closeCustomPopup();
+  });
+
+  pop.addEventListener('click', function(e){
+    e.stopPropagation();
+  });
+
+  const baseOpen = window.v13OpenCustomMenu;
+  window.v13OpenCustomMenu = function(fromMenu){
+    if(typeof baseOpen === 'function') baseOpen(fromMenu);
+    backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden','false');
+    pop.classList.remove('hidden');
+  };
+
+  const baseUse = window.v13UseCustom;
+  window.v13UseCustom = function(id){
+    closeCustomPopup();
+    if(typeof baseUse === 'function') return baseUse(id);
+  };
+
+  window.v14CloseCustomPopup = closeCustomPopup;
+})();
+</script>
