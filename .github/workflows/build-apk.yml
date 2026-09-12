@@ -15,7 +15,7 @@ jobs:
       - name: Restore Lead Hopper V13 HTML
         run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
 
-      - name: Apply tested V13 patches safely
+      - name: Apply tested V13/V14 patches safely
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -24,6 +24,7 @@ jobs:
           hot = Path('app/src/main/assets/v13_hotfix.html').read_text(encoding='utf-8')
           layout = Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
           import_fix = Path('app/src/main/assets/v13_import_fix.html').read_text(encoding='utf-8')
+          custom_dismiss = Path('app/src/main/assets/v14_custom_popup_dismiss.html').read_text(encoding='utf-8')
           text = app.read_text(encoding='utf-8')
 
           def insert_before_final_body(document, fragment):
@@ -38,6 +39,8 @@ jobs:
               text = insert_before_final_body(text, layout)
           if 'id="v13ImportFixScript"' not in text:
               text = insert_before_final_body(text, import_fix)
+          if 'id="v14CustomPopupDismissScript"' not in text:
+              text = insert_before_final_body(text, custom_dismiss)
 
           app.write_text(text, encoding='utf-8')
           PY
@@ -51,6 +54,7 @@ jobs:
           hot = text.find('id="v13HotfixScript"')
           layout = text.find('id="v13LayoutOrderScript"')
           import_fix = text.find('id="v13ImportFixScript"')
+          custom_dismiss = text.find('id="v14CustomPopupDismissScript"')
           init = text.find('function init()')
           final_body = text.rfind('</body>')
           final_html = text.rfind('</html>')
@@ -58,11 +62,13 @@ jobs:
           assert hot > init, 'Hotfix was injected inside the main JavaScript source'
           assert layout > init, 'Layout patch was injected inside the main JavaScript source'
           assert import_fix > init, 'Import fix was injected inside the main JavaScript source'
-          assert final_body > hot and final_body > layout and final_body > import_fix, 'V13 patches are not inside the real document body'
+          assert custom_dismiss > init, 'Custom popup dismissal patch was injected inside the main JavaScript source'
+          assert final_body > hot and final_body > layout and final_body > import_fix and final_body > custom_dismiss, 'Patches are not inside the real document body'
           assert final_html > final_body, 'Malformed document ending'
           assert text.rstrip().endswith('</html>'), 'Document does not end with </html>'
           assert 'window.openImport=showImportModal' in text, 'Import button recovery handler missing'
-          print('Packaged HTML structure OK; Import Leads handler present')
+          assert 'v14CloseCustomPopup' in text, 'Custom popup outside-tap handler missing'
+          print('Packaged HTML structure OK; import and custom-popup handlers present')
           PY
 
       - name: Set up Java 17
