@@ -1,0 +1,14 @@
+LEAD HOPPER MONOGLYPH — LOCK RECORD
+
+APPROVED VISUAL MASTER SHA-256
+eb1c57ac8bdc70142e7b265951506ef5a33d511aeca1e1fa30d1530eb5b6b3f0
+
+ANDROID PRODUCTION DERIVATIVE
+256×256 lossless WebP, uniformly scaled from the locked transparent master.
+SHA-256: 0a566d5d1ceefe128cb8740fbbe2e0dfc4b7293b5942fa81257b0d8eedac5bb1
+
+PRESERVATION RULES
+- Do not regenerate, redraw, reinterpret, or simplify the monoglyph.
+- Preserve proportions, negative spaces, hashtag count, motion arcs, handset, and funnel silhouette.
+- Allowed transformations are uniform scaling and transparent padding only.
+- The WebP is lossless and is restored byte-for-byte during CI before the Android build.
