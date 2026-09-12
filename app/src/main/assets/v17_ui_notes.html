@@ -1,0 +1,83 @@
+<style id="v17UiNotesStyles">
+/* V17: keep Next Lead compact while preserving the V16 frosted lock behavior. */
+.v16-nav-row{grid-template-columns:minmax(0,1fr) 144px!important;gap:9px!important}
+.v16-nav-row .next-wrap{width:144px!important;min-width:144px!important;height:48px!important;border-radius:14px!important}
+#btnNextLead{height:48px!important;min-height:48px!important;padding:4px 8px!important;border-radius:14px!important}
+#btnNextLead .btn-content{padding:3px!important;font-size:13px!important}
+.v16-nav-row .next-wrap .frost-lock{border-radius:14px!important;backdrop-filter:blur(12px) saturate(135%)!important;-webkit-backdrop-filter:blur(12px) saturate(135%)!important}
+.v16-nav-row .next-wrap .lock-card{gap:5px!important;padding:3px 6px!important}
+.v16-nav-row .next-wrap .lock-ico{font-size:15px!important}
+.v16-nav-row .next-wrap .lock-title{font-size:11px!important}
+@media(max-width:380px){
+  .v16-nav-row{grid-template-columns:minmax(0,1fr) 132px!important;gap:7px!important}
+  .v16-nav-row .next-wrap{width:132px!important;min-width:132px!important;height:46px!important}
+  #btnNextLead{height:46px!important;min-height:46px!important}
+}
+
+/* Persistent general notes live on the lead itself, independent of callback/appointment notes. */
+.v17-lead-notes{margin-top:10px;padding:10px 12px;border:1px solid rgba(148,163,184,.18);border-radius:14px;background:rgba(15,23,42,.34)}
+.v17-lead-notes-label{font-size:11px;font-weight:800;letter-spacing:.25px;color:var(--muted,#94a3b8);margin-bottom:6px}
+.v17-lead-notes textarea{width:100%;min-height:68px;max-height:150px;resize:vertical;box-sizing:border-box;border:1px solid rgba(148,163,184,.18);border-radius:11px;background:rgba(2,6,23,.34);color:inherit;padding:9px 10px;font:inherit;font-size:13px;line-height:1.35;outline:none}
+.v17-lead-notes textarea:focus{border-color:rgba(56,189,248,.55);box-shadow:0 0 0 2px rgba(56,189,248,.10)}
+.v17-lead-notes-hint{font-size:10px;color:var(--muted,#94a3b8);margin-top:5px;opacity:.78}
+</style>
+<script id="v17UiNotesScript">
+(function(){
+  if(window.__LH_V17_UI_NOTES__) return;
+  window.__LH_V17_UI_NOTES__=true;
+
+  function currentLead(){
+    try{return typeof getCurrentLead==='function' ? getCurrentLead() : null}catch(_){return null}
+  }
+
+  function installNotes(){
+    const block=document.getElementById('leadBlock');
+    const lead=currentLead();
+    if(!block||!lead) return;
+
+    let wrap=document.getElementById('v17LeadNotes');
+    if(!wrap){
+      wrap=document.createElement('div');
+      wrap.id='v17LeadNotes';
+      wrap.className='v17-lead-notes';
+      wrap.innerHTML='<div class="v17-lead-notes-label">Notes</div><textarea id="v17LeadNotesInput" placeholder="Add notes about this lead…" aria-label="Lead notes"></textarea><div class="v17-lead-notes-hint">Saved automatically to this lead.</div>';
+      const schedulePreview=block.querySelector('.v13-note-preview');
+      if(schedulePreview) block.insertBefore(wrap,schedulePreview); else block.appendChild(wrap);
+    }
+
+    const input=document.getElementById('v17LeadNotesInput');
+    if(!input) return;
+    const value=(lead.notes||'').toString();
+    if(document.activeElement!==input && input.value!==value) input.value=value;
+    input.dataset.leadId=lead.id||'';
+
+    if(!input.dataset.bound){
+      input.dataset.bound='1';
+      const save=function(){
+        const l=currentLead();
+        if(!l || String(l.id||'')!==String(input.dataset.leadId||'')) return;
+        const next=input.value.trim();
+        const prev=(l.notes||'').toString();
+        if(next===prev) return;
+        l.notes=next;
+        l.updatedAt=typeof nowISO==='function' ? nowISO() : new Date().toISOString();
+        l.history=l.history||[];
+        l.history.unshift({t:l.updatedAt,action:'lead-note',value:next});
+        try{ if(typeof addActivity==='function') addActivity({leadId:l.id,type:'Lead Note',detail:next? 'Notes updated':'Notes cleared'}); }catch(_){}
+        try{ if(typeof saveAll==='function') saveAll(); }catch(_){}
+      };
+      input.addEventListener('change',save);
+      input.addEventListener('blur',save);
+    }
+  }
+
+  const baseRenderLead=window.renderLead;
+  window.renderLead=function(){
+    if(typeof baseRenderLead==='function') baseRenderLead.apply(this,arguments);
+    installNotes();
+  };
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(installNotes,0)});
+  else setTimeout(installNotes,0);
+})();
+</script>
