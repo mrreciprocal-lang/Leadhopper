@@ -1,0 +1,53 @@
+<script id="v19ImportTransactionScript">
+(function(){
+ if(window.__LH_V19_IMPORT_TRANSACTION__)return;window.__LH_V19_IMPORT_TRANSACTION__=true;
+ let busy=false;
+ function keyOf(l){
+  const p=cleanPhone(l&&l.phone),f=safeText(l&&l.firstName).trim().toLowerCase(),n=safeText(l&&l.lastName).trim().toLowerCase();
+  if(p||f||n)return p+'|'+f+'|'+n;
+  return 'blank|'+uid();
+ }
+ function normalized(raw){const x=Object.assign({},raw||{});x.id=null;const l=normalizeLead(x);l.id=uid();return l}
+ function suppressed(l){
+  const p=cleanPhone(l.phone),s=state.suppression||{dnc:[],wrongNumbers:[]};
+  if(p&&(s.dnc||[]).some(x=>cleanPhone(x.phone)===p)){l.disposition='DNC';l.nextEligibleAt=null}
+  else if(p&&(s.wrongNumbers||[]).some(x=>cleanPhone(x.phone)===p)){l.disposition='Wrong Number';l.nextEligibleAt=null}
+  return l
+ }
+ function exactDedupe(rows){const seen=new Set(),out=[];rows.forEach(function(l){let k=keyOf(l);if(k.startsWith('blank|'))k+='|'+out.length;if(!seen.has(k)){seen.add(k);out.push(l)}});return out}
+ window.doImport=function(){
+  if(busy)return;
+  const fmt=(document.getElementById('importFormat')||{}).value||'csv';
+  const mode=(document.getElementById('importMode')||{}).value||'merge';
+  const text=document.getElementById('importText');
+  const txt=text?String(text.value||'').trim():'';
+  if(!txt){showToast('Choose a file or paste lead data first.',[],2200);return}
+  busy=true;
+  const backup=JSON.stringify(state);
+  const oldStored=localStorage.getItem(STORE_KEY);
+  try{
+   let raw=fmt==='json'?JSON.parse(txt):parseCSV(txt);
+   if(!Array.isArray(raw))throw new Error('Import must contain a list of leads.');
+   let incoming=exactDedupe(raw.map(normalized).map(suppressed));
+   const oldByKey=new Map((state.leads||[]).map(l=>[keyOf(l),l]));
+   if(mode==='replace'){
+    incoming=incoming.map(function(l){const old=oldByKey.get(keyOf(l));if(!old)return l;l.id=old.id;l.calls=old.calls||[];l.history=old.history||[];l.notes=old.notes||'';l.disposition=old.disposition||l.disposition||'New';l.nextEligibleAt=old.nextEligibleAt||null;return suppressed(l)});
+    state.leads=incoming;state.currentIndex=0;state.cursorLeadId=incoming[0]?incoming[0].id:null;state.holdLeadId=null;state.overrideLeadId=null;state.prevStack=[];resetAdvance();
+   }else{
+    const existing=new Set((state.leads||[]).map(keyOf)),adds=[];
+    incoming.forEach(function(l){const k=keyOf(l);if(!existing.has(k)){existing.add(k);adds.push(l)}});
+    state.leads=(state.leads||[]).concat(adds);if(!state.cursorLeadId&&state.leads[0])state.cursorLeadId=state.leads[0].id;
+   }
+   addActivity({type:'Import',detail:(mode==='replace'?'Imported ':'Merged ')+incoming.length+' rows'});
+   saveAll();
+   closeImport();renderAll();showToast((mode==='replace'?'Imported ':'Merged ')+incoming.length+' rows; '+state.leads.length+' total leads.',[],3000);
+  }catch(e){
+   state=JSON.parse(backup);
+   try{if(oldStored===null)localStorage.removeItem(STORE_KEY);else localStorage.setItem(STORE_KEY,oldStored)}catch(_e){}
+   try{renderAll()}catch(_e){}
+   showToast('Import failed safely: '+(e&&e.message?e.message:String(e)),[],5000);
+  }finally{busy=false}
+ };
+ try{doImport=window.doImport}catch(_e){}
+})();
+</script>
