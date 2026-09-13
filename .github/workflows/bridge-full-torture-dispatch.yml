@@ -1,0 +1,32 @@
+name: Dispatch Full Torture for Bridge Completion
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'stabilization/1.7.7-bridge-completion'
+    paths:
+      - 'app/**'
+      - 'tools/**'
+      - 'docs/LEAD_HOPPER_TORTURE_CONTRACT.md'
+      - '.github/workflows/bridge-full-torture-dispatch.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: leadhopper-bridge-full-torture-dispatch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch existing full torture workflow on this exact branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh workflow run android-torture.yml --repo "${{ github.repository }}" --ref "$REF_NAME"
+          echo "Dispatched Lead Hopper Android Torture Lab for $REF_NAME"
