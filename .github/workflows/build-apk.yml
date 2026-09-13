@@ -71,7 +71,7 @@ jobs:
         run: |
           grep -q 'applicationId = "com.kyle.leadhopper"' app/build.gradle.kts
           grep -q 'minSdk = 26' app/build.gradle.kts
-          grep -q 'versionCode = 26' app/build.gradle.kts
+          grep -q 'versionCode = 100' app/build.gradle.kts
           grep -q 'versionName = "1.7.7-bridge"' app/build.gradle.kts
           grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' app/src/main/AndroidManifest.xml
@@ -87,7 +87,7 @@ jobs:
           test -s app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
           grep -q '0a566d5d1ceefe128cb8740fbbe2e0dfc4b7293b5942fa81257b0d8eedac5bb1' app/icon-src/v174/MONOGLYPH_LOCK_RECORD.txt
           grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
-          echo 'Lead Hopper 1.7.7 bridge build 26 identity and locked artwork present'
+          echo 'Lead Hopper 1.7.7 bridge build 100 identity and locked artwork present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -120,7 +120,7 @@ jobs:
           cat > SIGNING_IDENTITY_EXPECTED.txt <<'EOF'
           Lead Hopper release identity gate
           Package: com.kyle.leadhopper
-          Candidate version: 1.7.7-bridge / versionCode 26
+          Candidate version: 1.7.7-bridge / versionCode 100
           Historical signed 1.7.6 APK SHA-256: 06aa4686d2a1960aca2c317be2fe50470e4b721e20b2f8f9a9cf16b5d4ed0b26
           REQUIRED release certificate SHA-256:
           CC:10:0C:56:ED:3C:34:6A:C2:C6:FF:56:5E:D9:5C:66:04:71:3C:63:5F:49:E4:3D:04:EA:5C:DA:0C:E8:EC:43
