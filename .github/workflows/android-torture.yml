@@ -268,10 +268,16 @@ jobs:
         run: |
           OUT="torture-artifacts/api-${{ matrix.api }}"
           set +e
-          adb logcat -c
+          # Instrumentation deliberately mutates production storage. Start the random-input
+          # abuse phase from a clean install state so this gate measures UI/process abuse,
+          # not residue from synthetic test fixtures or an old WebView's delayed DOM flush.
           adb shell am force-stop com.kyle.leadhopper
+          adb shell pm clear com.kyle.leadhopper > "$OUT/monkey-pm-clear.txt" 2>&1
+          clear_code=$?
+          adb logcat -c
           adb shell am start -W -n com.kyle.leadhopper/.MainActivity > "$OUT/launch-before-monkey.txt" 2>&1
           launch_code=$?
+          if [ "$clear_code" != "0" ]; then launch_code=96; fi
           timeout 150 adb shell monkey \
             -p com.kyle.leadhopper \
             -s 17625 \
