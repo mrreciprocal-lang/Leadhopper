@@ -44,20 +44,30 @@ def restore_base() -> str:
 def apply_api26_compatibility(document: str) -> str:
     """Keep the bridge parseable by the minimum supported WebView.
 
-    The canonicalized 1.x bridge inherited two optional-chaining expressions from a late hotfix.
-    API 26's stock WebView predates optional chaining, so a single `?.` can make that entire script
-    block fail to parse before any compatibility override has a chance to run. Rewrite only those
-    known expressions while the bridge remains in stabilization; native 2.0 will not carry this
-    JavaScript compatibility layer forward.
+    Android 8's emulator currently supplies Chrome/WebView 69. The consolidated 1.x bridge had
+    picked up optional chaining and nullish coalescing, both of which are syntax errors there.
+    Lower the few known expressions centrally so release and torture builds receive identical
+    bytes. Native 2.0 will not carry this JavaScript compatibility layer forward.
     """
     replacements = {
         "l?.id": "(l&&l.id)",
         "list[idx]?.id": "(list[idx]&&list[idx].id)",
+        "(x ?? \"\")": "(x == null ? \"\" : x)",
+        "(str ?? \"\")": "(str == null ? \"\" : str)",
+        "(v ?? \"\")": "(v == null ? \"\" : v)",
     }
     for old, new in replacements.items():
         document = document.replace(old, new)
+    unsupported = []
     if "?." in document:
-        raise RuntimeError("Production bridge still contains optional chaining unsupported by the API 26 WebView contract")
+        unsupported.append("optional chaining (?.)")
+    if "??" in document:
+        unsupported.append("nullish coalescing (??)")
+    if unsupported:
+        raise RuntimeError(
+            "Production bridge still contains syntax unsupported by the API 26 WebView contract: "
+            + ", ".join(unsupported)
+        )
     return document
 
 
