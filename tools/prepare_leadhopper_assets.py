@@ -41,6 +41,26 @@ def restore_base() -> str:
     return gzip.decompress(raw).decode("utf-8")
 
 
+def apply_api26_compatibility(document: str) -> str:
+    """Keep the bridge parseable by the minimum supported WebView.
+
+    The canonicalized 1.x bridge inherited two optional-chaining expressions from a late hotfix.
+    API 26's stock WebView predates optional chaining, so a single `?.` can make that entire script
+    block fail to parse before any compatibility override has a chance to run. Rewrite only those
+    known expressions while the bridge remains in stabilization; native 2.0 will not carry this
+    JavaScript compatibility layer forward.
+    """
+    replacements = {
+        "l?.id": "(l&&l.id)",
+        "list[idx]?.id": "(list[idx]&&list[idx].id)",
+    }
+    for old, new in replacements.items():
+        document = document.replace(old, new)
+    if "?." in document:
+        raise RuntimeError("Production bridge still contains optional chaining unsupported by the API 26 WebView contract")
+    return document
+
+
 def insert_before_v13(document: str, fragment: str) -> str:
     marker = '<script id="v13Script">'
     if document.count(marker) != 1:
@@ -104,13 +124,13 @@ def validate(text: str) -> None:
 
 
 def main() -> None:
-    text = restore_base()
+    text = apply_api26_compatibility(restore_base())
     pre_marker, pre_filename = PRE_V13_PATCH
-    pre_fragment = (ASSETS / pre_filename).read_text(encoding="utf-8")
+    pre_fragment = apply_api26_compatibility((ASSETS / pre_filename).read_text(encoding="utf-8"))
     if f'id="{pre_marker}"' not in text:
         text = insert_before_v13(text, pre_fragment)
     for marker, filename in PATCHES:
-        fragment = (ASSETS / filename).read_text(encoding="utf-8")
+        fragment = apply_api26_compatibility((ASSETS / filename).read_text(encoding="utf-8"))
         if f'id="{marker}"' not in text:
             text = insert_before_final_body(text, fragment)
     validate(text)
