@@ -3,7 +3,7 @@ name: Build Lead Hopper APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, stabilization/1.7.7-bridge-completion ]
 
 jobs:
   build:
@@ -46,6 +46,9 @@ jobs:
 
       - name: Validate packaged HTML structure and Hopper layout
         run: |
+          python - <<'PY'
+          from pathlib import import Path
+          PY
           python - <<'PY'
           from pathlib import Path
           text=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
