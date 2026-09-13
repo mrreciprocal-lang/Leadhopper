@@ -55,7 +55,15 @@
   loadAll=function(){
     try {
       var raw=localStorage.getItem(STORE_KEY);
-      if(window.AndroidBridge&&AndroidBridge.recoverSnapshot){var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));if(!recovered.ok)throw new Error('Native snapshot could not be read.');if(raw==null&&recovered.state){raw=recovered.state;localStorage.setItem(STORE_KEY,raw);}}
+      if(window.AndroidBridge&&AndroidBridge.recoverSnapshot){
+        var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));
+        if(!recovered.ok)throw new Error('Native snapshot could not be read.');
+        if(recovered.state!=null&&recovered.state!==raw){
+          raw=recovered.state;
+          localStorage.setItem(STORE_KEY,raw);
+          window.__LH_NATIVE_RECOVERY_APPLIED__=true;
+        }
+      }
       if(raw)validate(JSON.parse(raw),false);
       priorLoadAll(); hydrated=true;
       lastDurableRaw=raw||JSON.stringify(state);
