@@ -9,6 +9,8 @@ on:
       - 'app/**'
       - 'tools/**'
       - 'docs/LEAD_HOPPER_TORTURE_CONTRACT.md'
+      - '.github/workflows/android-torture.yml'
+      - '.github/workflows/data-survival-torture.yml'
       - '.github/workflows/bridge-full-torture-dispatch.yml'
 
 permissions:
