@@ -19,7 +19,7 @@ jobs:
   data-survival:
     name: Data survival API 35
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout stabilization branch
         uses: actions/checkout@v4
@@ -141,6 +141,37 @@ jobs:
           adb logcat -d -v threadtime > data-survival-artifacts/logcat.txt 2>/dev/null || true
           exit 0
 
+      - name: Re-run frozen golden behaviors after persistence surgery
+        id: golden
+        shell: bash
+        run: |
+          set +e
+          CLASS=com.kyle.leadhopper.LeadHopperTortureTest
+          RUNNER=com.kyle.leadhopper.test/androidx.test.runner.AndroidJUnitRunner
+          methods=(
+            productionPackageContainsEveryLockedRepairMarker
+            hopperButtonsAreTrueFiftyFiftyAndEqualHeight
+            activityBackControlReturnsToHopper
+            reportAndCsvExportsAreRoutedThroughNativeSaveBridge
+            noAnswerMovesLeadToTailAndAutoAdvances
+            sameTimeDueCallbacksUseOriginalSchedulingOrder
+            appointmentSpacingHonorsExactBoundary
+          )
+          overall=0
+          for method in "${methods[@]}"; do
+            echo "=== GOLDEN: $method ===" | tee -a data-survival-artifacts/golden-regressions.txt
+            timeout 90 adb shell am instrument -w -r \
+              -e class "$CLASS#$method" \
+              "$RUNNER" \
+              2>&1 | tee -a data-survival-artifacts/golden-regressions.txt
+            code=${PIPESTATUS[0]}
+            if [ "$code" != "0" ]; then overall=1; fi
+          done
+          if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/golden-regressions.txt; then overall=1; fi
+          echo "$overall" > data-survival-artifacts/golden-exit-code.txt
+          echo "exit_code=$overall" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Upload data survival evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -149,12 +180,15 @@ jobs:
           path: data-survival-artifacts
           if-no-files-found: error
 
-      - name: Enforce data survival gate
+      - name: Enforce data survival and frozen behavior gates
         if: always()
         run: |
-          code="${{ steps.tests.outputs.exit_code }}"
-          if [ -z "$code" ]; then code=99; fi
-          if [ "$code" != "0" ]; then
-            echo "Lead Hopper data survival gate failed. Inspect uploaded evidence."
-            exit "$code"
+          data_code="${{ steps.tests.outputs.exit_code }}"
+          golden_code="${{ steps.golden.outputs.exit_code }}"
+          if [ -z "$data_code" ]; then data_code=99; fi
+          if [ -z "$golden_code" ]; then golden_code=99; fi
+          echo "data_survival=$data_code golden_regressions=$golden_code"
+          if [ "$data_code" != "0" ] || [ "$golden_code" != "0" ]; then
+            echo "Lead Hopper data survival/frozen behavior gate failed. Inspect uploaded evidence."
+            exit 1
           fi
