@@ -10,6 +10,11 @@
     if(!state.phoneQueue||typeof state.phoneQueue!=='object'||Array.isArray(state.phoneQueue))state.phoneQueue={};
     return state.phoneQueue;
   }
+  function maxQueueOrder(){
+    var max=-1,store=queueStore();
+    Object.keys(store).forEach(function(phone){var n=Number(store[phone]&&store[phone].order);if(Number.isFinite(n)&&n>max)max=n;});
+    return max;
+  }
   function personKey(lead){
     return safeText(lead&&lead.firstName).toLowerCase()+'|'+safeText(lead&&lead.lastName).toLowerCase();
   }
@@ -50,30 +55,61 @@
   function ordinaryPersonEligible(lead){
     return !!(lead&&lead.active!==false&&!suppressedPerson(lead)&&!isRemoved(lead)&&!isSnoozed(lead)&&leadDisposition(lead)!=='Appointment Set');
   }
-  function recordFor(phone,create){
+  function recordFor(phone,create,requestedOrder){
     var p=cleanPhone(phone);if(!p)return null;
     var store=queueStore(),q=store[p];
-    if(!q&&create){q=store[p]={phone:p,ownerLeadId:null,nextEligibleAt:null,removedFromCold:false,reason:null,updatedAt:nowISO()};}
+    if(!q&&create){
+      var order=Number(requestedOrder);
+      if(!Number.isFinite(order)||order<0)order=maxQueueOrder()+1;
+      q=store[p]={phone:p,ownerLeadId:null,nextEligibleAt:null,removedFromCold:false,reason:null,updatedAt:nowISO(),order:order};
+    }else if(q&&create&&(!Number.isFinite(Number(q.order))||Number(q.order)<0)){
+      var backfill=Number(requestedOrder);
+      q.order=Number.isFinite(backfill)&&backfill>=0?backfill:maxQueueOrder()+1;
+    }
     return q||null;
   }
   function chooseInitialOwner(phone){
     var active=members(phone,true),eligible=active.filter(ordinaryPersonEligible);
     return (eligible[0]||active[0]||null);
   }
-  function bootstrapQueue(){
-    var changed=false,seen={};queueStore();
+  function initializeRecord(phone,order){
+    var q=recordFor(phone,true,order),owner=chooseInitialOwner(phone);
+    if(!q.ownerLeadId&&owner)q.ownerLeadId=owner.id;
+    if(owner&&owner.nextEligibleAt&&new Date(owner.nextEligibleAt).getTime()>Date.now()){
+      q.nextEligibleAt=owner.nextEligibleAt;q.reason=leadDisposition(owner)||'snooze';
+    }
+    if((state.leads||[]).some(function(x){return cleanPhone(x.phone)===cleanPhone(phone)&&leadDisposition(x)==='Appointment Set';})||
+       (state.schedule||[]).some(function(item){return item.type==='appointment'&&!item.done&&phoneForSchedule(item)===cleanPhone(phone);})){
+      q.removedFromCold=true;q.nextEligibleAt=null;q.reason='Appointment Set';
+    }
+    return q;
+  }
+  function reconcileQueue(){
+    var changed=false,seen={},ordinal=0,store=queueStore();
     (state.leads||[]).forEach(function(lead){
       var p=cleanPhone(lead.phone);if(!p||seen[p])return;seen[p]=true;
-      if(state.phoneQueue[p])return;
-      var owner=chooseInitialOwner(p),q=recordFor(p,true);changed=true;
-      q.ownerLeadId=owner&&owner.id||null;
-      if(owner&&owner.nextEligibleAt&&new Date(owner.nextEligibleAt).getTime()>Date.now()){
-        q.nextEligibleAt=owner.nextEligibleAt;q.reason=leadDisposition(owner)||'snooze';
+      var q=store[p];
+      if(!q){initializeRecord(p,maxQueueOrder()+1);changed=true;}
+      else{
+        if(!Number.isFinite(Number(q.order))||Number(q.order)<0){q.order=ordinal;changed=true;}
+        var owner=(state.leads||[]).find(function(x){return String(x.id)===String(q.ownerLeadId||'')&&cleanPhone(x.phone)===p;});
+        if(!owner){var replacement=chooseInitialOwner(p);q.ownerLeadId=replacement&&replacement.id||null;q.updatedAt=nowISO();changed=true;}
       }
-      if((state.leads||[]).some(function(x){return cleanPhone(x.phone)===p&&leadDisposition(x)==='Appointment Set';})||
-         (state.schedule||[]).some(function(item){return item.type==='appointment'&&!item.done&&phoneForSchedule(item)===p;})){
-        q.removedFromCold=true;q.nextEligibleAt=null;q.reason='Appointment Set';
+      ordinal++;
+    });
+    return changed;
+  }
+  function bootstrapQueue(){
+    var changed=false,seen={},ordinal=0,store=queueStore();
+    (state.leads||[]).forEach(function(lead){
+      var p=cleanPhone(lead.phone);if(!p||seen[p])return;seen[p]=true;
+      var q=store[p];
+      if(!q){initializeRecord(p,ordinal);changed=true;}
+      else{
+        if(!Number.isFinite(Number(q.order))||Number(q.order)<0){q.order=ordinal;changed=true;}
+        if(!q.ownerLeadId){var owner=chooseInitialOwner(p);q.ownerLeadId=owner&&owner.id||null;q.updatedAt=nowISO();changed=true;}
       }
+      ordinal++;
     });
     if(changed&&window.__LH_STORAGE_READY__)saveAll();
   }
@@ -89,7 +125,13 @@
       q.removedFromCold=false;q.nextEligibleAt=next;
     }else if(disp==='Callback'){
       q.removedFromCold=false;q.nextEligibleAt=null;
-    }else if(disp==='No Answer'||disp==='Wrong Number'||disp==='Do Not Call'||disp==='No English'||disp==='New'||disp==='Quote'||!next){
+    }else if(disp==='No Answer'){
+      q.removedFromCold=false;q.nextEligibleAt=null;q.order=maxQueueOrder()+1;
+    }else if(disp==='Wrong Number'){
+      q.removedFromCold=false;q.nextEligibleAt=null;
+      var fallback=members(p,true).filter(ordinaryPersonEligible)[0];
+      if(fallback)q.ownerLeadId=fallback.id;
+    }else if(disp==='Do Not Call'||disp==='No English'||disp==='New'||disp==='Quote'||!next){
       q.removedFromCold=false;q.nextEligibleAt=null;
     }
     return true;
@@ -103,9 +145,9 @@
 
   bootstrapQueue();
 
-  // The preceding Phase 0 identity patch already collapses ordinary sibling candidates.
-  // This layer adds durable phone-level scheduling/queue effects so a sleeping/removed owner
-  // cannot be bypassed by another person sharing the same normalized phone.
+  // The preceding Phase 0 identity patch collapses ordinary sibling candidates. This layer
+  // gives each normalized phone one durable queue position so sibling records cannot bypass
+  // snoozes, callbacks, appointments, or No Answer tailing.
   var priorEligible=window.eligibleLeads;
   window.eligibleLeads=eligibleLeads=function(){
     var base=priorEligible();
@@ -121,16 +163,16 @@
     base.forEach(function(candidate,index){
       if(included[candidate.id])return;
       var p=cleanPhone(candidate.phone);
-      if(!p){ordinary.push({lead:candidate,rank:index});return;}
+      if(!p){ordinary.push({lead:candidate,rank:maxQueueOrder()+1+index});return;}
       if(claimedPhones[p]||hasUnresolvedCallback(p)||hasOpenAppointment(p))return;
       var q=recordFor(p,true);
       if(q.nextEligibleAt&&new Date(q.nextEligibleAt).getTime()>Date.now())return;
       var owner=(state.leads||[]).find(function(lead){return String(lead.id)===String(q.ownerLeadId||'')&&cleanPhone(lead.phone)===p;});
       var representative=owner&&ordinaryPersonEligible(owner)?owner:candidate;
+      if(!q.ownerLeadId&&representative)q.ownerLeadId=representative.id;
       var already=ordinary.some(function(x){return cleanPhone(x.lead.phone)===p;});if(already)return;
       var priority=(state.priorityLeadIds||[]).indexOf(representative.id);
-      var stateRank=(state.leads||[]).findIndex(function(lead){return String(lead.id)===String(representative.id);});
-      ordinary.push({lead:representative,rank:priority>=0?-100000+priority:(stateRank>=0?stateRank:index)});
+      ordinary.push({lead:representative,rank:priority>=0?-100000+priority:Number(q.order)});
     });
     ordinary.sort(function(a,b){return a.rank-b.rank||comparePeople(a.lead,b.lead);});
     ordinary.forEach(function(item){if(!included[item.lead.id]){out.push(item.lead);included[item.lead.id]=true;}});
@@ -196,6 +238,19 @@
       var created=(state.schedule||[]).find(function(item){return item.type==='appointment'&&worked&&String(item.leadId)===String(worked.id)&&!before[item.id];});
       var live=worked&&(state.leads||[]).find(function(lead){return String(lead.id)===String(worked.id);});
       if(created&&live){applyQueueEffect(live);saveAll();renderAll();}
+      return result;
+    });
+  };
+
+  // Imports may add another person to an existing phone or a brand-new phone. Siblings reuse the
+  // existing entry; genuinely new phones join the tail. Replace never destroys historical queue
+  // records because archived people and their history remain part of the local data set.
+  var priorImport=window.doImport;
+  if(typeof priorImport==='function')window.doImport=function(){
+    var self=this,args=arguments;
+    return tx(function(){
+      var result=priorImport.apply(self,args);
+      if(reconcileQueue()){saveAll();renderAll();}
       return result;
     });
   };
