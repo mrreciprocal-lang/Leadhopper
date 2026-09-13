@@ -15,6 +15,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HTML = ROOT / "app" / "src" / "main" / "assets" / "index.html"
+MANIFEST = ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
+MAIN_ACTIVITY = ROOT / "app" / "src" / "main" / "java" / "com" / "kyle" / "leadhopper" / "MainActivity.java"
+SNAPSHOT_STORE = ROOT / "app" / "src" / "main" / "java" / "com" / "kyle" / "leadhopper" / "MigrationSnapshotStore.java"
 REPORT = ROOT / "torture-static-report.json"
 
 
@@ -62,6 +65,9 @@ def function_body(text: str, name: str) -> str:
 
 def main() -> int:
     text = HTML.read_text(encoding="utf-8")
+    manifest = MANIFEST.read_text(encoding="utf-8")
+    main_activity = MAIN_ACTIVITY.read_text(encoding="utf-8")
+    snapshot_store = SNAPSHOT_STORE.read_text(encoding="utf-8")
     hard: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
     passed: list[str] = []
@@ -76,7 +82,7 @@ def main() -> int:
         "v19DataSurvivalScript", "v13HotfixScript", "v13LayoutOrderScript",
         "v13ImportFixScript", "v14CustomPopupDismissScript", "v14CallbackAutoAdvanceScript",
         "v16HopperUiRepairScript", "v17UiNotesScript", "v18ActivityReportsRepairScript",
-        "v19RestoreUiScript",
+        "v19RestoreUiScript", "phase0ContractRepairsScript", "phase0PhoneQueueScript",
     ]
     for marker in markers:
         n = text.count(f'id="{marker}"')
@@ -102,6 +108,22 @@ def main() -> int:
         fail("BOOT_SAVE_BEFORE_LOAD", "Persistence guard does not provably execute before V13 and block writes until hydration")
     else:
         passed.append("Pre-load writes are fail-closed behind the V19 hydration guard")
+
+    journal_abort_ok = all(x in text for x in [
+        "AndroidBridge.abortSnapshot(generation)", "Snapshot rollback failed",
+    ]) and all(x in main_activity for x in [
+        "abortSnapshot(long generation)", "snapshots.abort(generation)",
+    ]) and "synchronized void abort(long generation)" in snapshot_store
+    if not journal_abort_ok:
+        fail("PENDING_JOURNAL_POISON", "Failed WebView writes are not proven to abort the exact staged native generation")
+    else:
+        passed.append("Failed writes generation-check and abort their staged native journal entry")
+
+    single_instance_ok = 'android:launchMode="singleTask"' in manifest
+    if not single_instance_ok:
+        fail("MULTI_ACTIVITY_STACK", "MainActivity is not protected against duplicate launcher/task instances")
+    else:
+        passed.append("Lead Hopper launcher activity is single-instance within its task")
 
     backup_ok = all(x in text for x in [
         "exportData=window.exportData=function", "v19BuildBackupEnvelope",
@@ -149,6 +171,23 @@ def main() -> int:
     else:
         passed.append("Generic future nextEligibleAt drives snooze eligibility")
 
+    phone_queue_ok = all(x in text for x in [
+        "__LH_PHASE0_PHONE_QUEUE__", "phase0PhoneQueueStatus", "q.order=maxQueueOrder()+1",
+        "hasUnresolvedCallback", "hasOpenAppointment", "reconcileQueue",
+    ])
+    if not phone_queue_ok:
+        fail("SHARED_PHONE_QUEUE", "One-phone cold queue state is missing durable ordering/reservation protections")
+    else:
+        passed.append("Shared-phone cold queue has durable ordering, tailing, callback and appointment guards")
+
+    undo_audit_ok = all(x in text for x in [
+        "reversed=true", "reversalId", "type:'Undo'", "action:'undo'",
+    ])
+    if not undo_audit_ok:
+        fail("UNDO_ERASES_AUDIT", "Undo is not proven to retain and mark the reversed audit event")
+    else:
+        passed.append("Undo retains reversed audit events and appends a reversal record")
+
     restore_ok = all(x in text for x in [
         "v19ParseBackupText", "v19ApplyBackupText", "backupVersion!==1",
         "validate(candidate,true)", "v19RestoreBackupInput",
@@ -170,12 +209,12 @@ def main() -> int:
 
     replace_ok = all(x in text for x in [
         "state.leads.forEach(l=>l.active=false)", "a.active=true", "byKey.has(k)",
-        "Existing history and schedules will be preserved.",
+        "Existing history and schedules will be preserved.", "phase0-archived-schedule",
     ])
     if not replace_ok:
-        fail("REPLACE_ORPHANS_HISTORY", "Effective Replace path does not preserve stable existing lead identities/history")
+        fail("REPLACE_ORPHANS_HISTORY", "Effective Replace path does not preserve stable existing lead identities/history and surface archived scheduled work")
     else:
-        passed.append("Replace archives/reactivates existing people instead of deleting linked history")
+        passed.append("Replace archives/reactivates existing people, preserves history, and surfaces archived scheduled work")
 
     suppression_ok = all(x in text for x in [
         "window.v13Unblock=function", "l.disposition='New'",
