@@ -27,6 +27,7 @@ PATCHES = [
     ("v18ActivityReportsRepairScript", "v18_activity_reports_repair.html"),
     ("v19RestoreUiScript", "v19_restore_ui.html"),
     ("phase0ContractRepairsScript", "phase0_contract_repairs.html"),
+    ("phase0PhoneQueueScript", "phase0_phone_queue.html"),
 ]
 
 BOOT_LOCKED_ACTION_IDS = [
@@ -154,6 +155,7 @@ def validate(text: str) -> None:
         "__LH_V19_DATA_SURVIVAL__",
         "__LH_V19_RESTORE_UI__",
         "__LH_PHASE0_CONTRACT_REPAIRS__",
+        "__LH_PHASE0_PHONE_QUEUE__",
         "AndroidBridge.saveText",
         "v18MenuHome",
         "v18ActivityNav",
@@ -161,6 +163,7 @@ def validate(text: str) -> None:
         "lead-hopper-full-backup",
         "v19RestoreBackupInput",
         "phase0ClusterBadge",
+        "phase0PhoneQueueStatus",
         "reversalId",
         "grid-template-columns:repeat(4,minmax(0,1fr))!important",
         "height:78px!important",
