@@ -6,6 +6,8 @@ This file is the durable product/test contract for Lead Hopper. The Android Tort
 
 The current stabilization cycle is a preservation-first release. Existing green calling behavior is frozen while data survival, compatibility, shell/layout, and safety defects are repaired. Do not casually redesign or rewrite working Hopper behavior while fixing unrelated defects.
 
+The current working 1.x application must also be preserved as the golden behavioral reference for native 2.0. Native architecture may replace fragile machinery but must not casually add taps, screens, latency, abstractions, or workflow changes. Preservation is the default; departures require an explicit reason and evidence.
+
 ## Core calling workflow
 
 - Lead Hopper is a local-first, one-lead-at-a-time calling station, not an autodialer or predictive dialer.
@@ -14,13 +16,14 @@ The current stabilization cycle is a preservation-first release. Existing green 
 - **No Answer** saves the disposition, moves the worked lead to the tail, and automatically advances.
 - **Not Interested** snoozes for the configured number of days.
 - **Has State Farm** snoozes for its configured period.
-- **Callback** creates a schedule item, removes the lead from ordinary eligibility until due, and advances after save.
+- Any custom action that assigns a future eligibility date must remove that lead from ordinary Hopper eligibility until that date. Eligibility is one rule, not a special case per button.
+- **Callback** creates a schedule item, removes the lead from ordinary eligibility until due, and advances only after the callback transaction has saved successfully. Cancel, invalid input, or failed persistence must not advance or partially apply.
 - Due callbacks outrank ordinary leads. When two callbacks have the same due time, the callback that was originally scheduled first must come first.
 - **Quote Appointment** opens the full appointment form, creates a scheduled appointment, and removes the lead from the cold hopper.
 - Appointment spacing uses the configured spacing value; the exact boundary is allowed.
 - **DNC**, **Wrong Number**, and **No English** remain excluded unless deliberately corrected.
 - Previous must be able to revisit the last worked lead even if that lead is now snoozed or removed.
-- Undo must restore the complete pre-action transaction for dispositions, callbacks, appointments, suppression side effects, queue state, activity/history, and timer state.
+- Undo must restore the complete pre-action business state for dispositions, callbacks, appointments, suppression side effects, queue state, and timer state **without erasing the audit trail**. The original event remains recorded/identifiable as reversed and an Undo/reversal event is appended.
 - Every lead should expose its last-call time unobtrusively.
 
 ## Persistence and data survival
@@ -44,11 +47,14 @@ Boot order is **load -> migrate/backfill -> validate -> render -> save migrated 
 
 Storage failures must be visible. The UI must never imply success when durable storage failed. A failed save must not leave the user working against state that exists only in memory while the durable copy remains older.
 
+The 1.7.7 bridge native migration journal and WebView state must either agree on a committed generation or fail closed/recover through a defined path. Unexplained divergence may not be guessed away.
+
 ## Import, replace, backup, and export
 
 - Merge is the safe default import behavior.
 - Replace must be explicit and must preserve permanent suppression.
-- Replace must not orphan linked schedule/history records through unnecessary ID churn.
+- Replace means replace the **active calling roster**, not destroy historical people. People omitted by the replacement are archived/inactive rather than erased along with their notes/history.
+- Replace must not orphan linked schedule/history records through unnecessary ID churn. Open callbacks/appointments attached to people removed from the active roster must be surfaced for deliberate resolution rather than silently deleted or stranded.
 - Full backup JSON must be a versioned full-state snapshot and must actually be restorable as full application state.
 - Restore must validate a backup before changing anything and must be atomic: malformed or unsavable backups leave the current app state unchanged.
 - Activity CSV and Daily Report use Android's native save bridge.
@@ -64,17 +70,18 @@ Duplicate phone numbers are **not** automatically duplicate people.
 When one normalized phone number is attached to multiple distinct names:
 
 1. Preserve every person/lead record rather than deleting or merging the names away.
-2. Treat the records as a **contact cluster** for presentation.
-3. Sort cluster members alphabetically by **last name, then first name**.
-4. Display the alphabetically first person as the primary visible name.
-5. Immediately beside that name, show a small `+N` badge where `N` is the number of additional names sharing that phone number.
-6. The `+N` badge appears **only** when the number has two or more distinct names. Ordinary one-name/one-number leads show no extra badge or empty placeholder.
-7. Tapping the badge opens a compact popover/sheet that **only lists the other names for reference**. It does not switch the active lead/person and cannot change which person receives notes, callbacks, appointments, history, email, or address edits.
-8. Person-specific notes, history, appointment identity, email, and address remain attached to the individual lead unless explicitly changed.
-9. **DNC is phone-wide** and applies to every name sharing the normalized number. **Wrong Number remains person + phone specific**, so a wrong-name record does not automatically suppress a different person who legitimately uses the same number.
-10. Callback/appointment ownership remains attached to the active person unless a future product decision explicitly changes that rule.
+2. The ordinary cold Hopper presents only one calling opportunity for a normalized phone number at a time; duplicate names do not create duplicate cold calls to the same number.
+3. Treat the records as a **contact cluster** for presentation.
+4. Sort cluster members alphabetically by **last name, then first name**.
+5. Display the alphabetically first person as the primary visible name.
+6. Immediately beside that name, show a small `+N` badge where `N` is the number of additional names sharing that phone number.
+7. The `+N` badge appears **only** when the number has two or more distinct names. Ordinary one-name/one-number leads show no extra badge or empty placeholder.
+8. Tapping the badge opens a compact popover/sheet that **only lists the other names for reference**. It does not switch the active lead/person and cannot change which person receives notes, callbacks, appointments, history, email, or address edits.
+9. Person-specific notes, history, appointment identity, email, and address remain attached to the individual lead unless explicitly changed.
+10. **DNC is phone-wide** and applies to every name sharing the normalized number. **Wrong Number remains person + phone specific**, so a wrong-name record does not automatically suppress a different person who legitimately uses the same number.
+11. Callback/appointment ownership remains attached to the active person unless a future product decision explicitly changes that rule.
 
-Example: Bob Smith, Mary Smith, and Susan Carter share 555-1234. The default card displays `Susan Carter  +2`; tapping `+2` reveals Bob Smith and Mary Smith as informational names only.
+Example: Bob Smith, Mary Smith, and Susan Carter share 555-1234. The default card displays `Susan Carter  +2`; tapping `+2` reveals Bob Smith and Mary Smith as informational names only. The cluster still contributes one ordinary cold-Hopper opportunity for 555-1234 rather than three duplicate cold calls.
 
 ## Hopper visual contract
 
@@ -90,8 +97,10 @@ The primary calling dock is deliberately opinionated:
 - Modals must fit/scroll on small screens and with the software keyboard visible.
 - No orphan Close/Save controls or malformed body-level action fragments.
 - **All phone layouts use the existing approved full-color Lead Hopper logo as the header brand element instead of a squeezed text title.** Do not redesign the logo or alter the locked icon/monoglyph assets while making this header change.
+- Approved full-color launcher artwork uses the same visual footprint/scale as the approved monochrome monoglyph so themed and unthemed launcher states have parity.
 - Critical touch targets should meet the 48dp target wherever practical.
 - Modal focus must not escape to background calling controls.
+- Hopper actions must not be interactive before their JavaScript handlers and hydrated state are ready. A startup/process-restart tap may safely do nothing, but may not throw an uncaught handler error or mutate unhydrated state.
 
 ## Reports and activity
 
@@ -108,7 +117,7 @@ Daily Report is one standalone responsive/printable HTML file for the selected d
 - chronological activity timeline
 - schedule for the selected day
 
-Activity/history must not silently truncate business records.
+Activity/history must not silently truncate business records. Reversal/Undo auditing is retained rather than rewritten out of existence.
 
 ## Android shell contract
 
@@ -131,14 +140,19 @@ Every serious build should be subjected to:
 - real packaged WebView instrumentation
 - persistence/reload regression fixtures
 - deterministic queue/callback/appointment contract tests
+- generic future-eligibility/custom-snooze tests
+- shared-phone cluster and one-cold-opportunity tests
+- Replace archive + unresolved-schedule resolution tests
+- Undo/reversal audit-retention tests
 - backup -> wipe -> restore -> compare round-trip testing
 - forced storage-write failure/rollback testing
 - process death/relaunch
-- random Monkey input and logcat crash/ANR scanning
+- random Monkey input and logcat crash/ANR/uncaught-JS scanning
 - multiple viewport sizes/densities
 - large font scaling
 - screenshots of Hopper, menu, All Leads, Schedule, Reports, callback modal, appointment modal, No English modal, and long-content states
 - package payload checks proving the tested HTML is the same HTML packaged into release
 - static sentinels for data-loss, unsafe export, executable imported identifiers, duplicate IDs, and fixed-dock regressions
+- a populated same-signer 1.x -> 1.7.7 Bridge upgrade before Phase 0 is declared complete
 
 The Torture Lab is intentionally allowed to be red while known blocking defects remain. A green result should mean something.
