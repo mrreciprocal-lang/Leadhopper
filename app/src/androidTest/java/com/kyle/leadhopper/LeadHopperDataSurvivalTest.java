@@ -99,10 +99,18 @@ public class LeadHopperDataSurvivalTest {
     }
 
     @Test
+    public void bootstrapWriteIsBlockedUntilHydration() throws Exception {
+        JSONObject status = new JSONObject(evalString("return JSON.stringify(v19GetPersistenceStatus());"));
+        assertTrue(status.getBoolean("hydrated"));
+        assertTrue("The historical V13 pre-load save should have been intercepted", status.getInt("blockedPreloadSaves") >= 1);
+        assertTrue(status.getBoolean("hasSnapshot"));
+    }
+
+    @Test
     public void richPersistedStateSurvivesRealReload() throws Exception {
         String fixture = richFixtureScript("Persistence");
         assertEquals("seeded", evalString(
-                "var s=" + fixture + ";localStorage.setItem(STORE_KEY,JSON.stringify(s));return 'seeded';"
+                "var s=" + fixture + ";state=s;localStorage.setItem(STORE_KEY,JSON.stringify(s));return 'seeded';"
         ));
 
         evalRaw("location.reload();return true;");
