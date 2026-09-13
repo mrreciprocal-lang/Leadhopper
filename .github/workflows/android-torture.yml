@@ -14,7 +14,7 @@ on:
       - 'gradle.properties'
 
 concurrency:
-  group: leadhopper-torture-v2-${{ github.ref }}
+  group: leadhopper-torture-v3-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -151,20 +151,37 @@ jobs:
         id: emulator
         shell: bash
         run: |
-          mkdir -p torture-artifacts/api-${{ matrix.api }}
+          OUT="torture-artifacts/api-${{ matrix.api }}"
+          mkdir -p "$OUT"
           sudo chmod 666 /dev/kvm 2>/dev/null || true
+
+          # GitHub Actions changes HOME in several actions. Pin the AVD directory so
+          # avdmanager and emulator cannot disagree about where the virtual device lives.
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/leadhopper-avd-${{ matrix.api }}"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          echo "HOME=$HOME" | tee "$OUT/android-home.txt"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" | tee -a "$OUT/android-home.txt"
+          echo "ANDROID_HOME=$ANDROID_HOME" | tee -a "$OUT/android-home.txt"
+
           echo no | avdmanager create avd --force \
             --name "leadhopper-api-${{ matrix.api }}" \
             --package "system-images;android-${{ matrix.api }};google_apis;x86_64" \
             --device "pixel_2"
 
+          avdmanager list avd | tee "$OUT/avd-list.txt"
+          find "$ANDROID_AVD_HOME" -maxdepth 3 -type f -print | sort | tee "$OUT/avd-files.txt"
+          test -f "$ANDROID_AVD_HOME/leadhopper-api-${{ matrix.api }}.ini"
+
           nohup "$ANDROID_HOME/emulator/emulator" \
             -avd "leadhopper-api-${{ matrix.api }}" \
-            -no-window -noaudio -no-boot-anim \
+            -no-window -noaudio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect \
             -camera-back none -camera-front none \
             -memory 2048 \
-            > "torture-artifacts/api-${{ matrix.api }}/emulator.log" 2>&1 &
+            > "$OUT/emulator.log" 2>&1 &
+          EMULATOR_PID=$!
+          echo "$EMULATOR_PID" > "$OUT/emulator-pid.txt"
 
           timeout 180 adb wait-for-device
           timeout 240 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
@@ -172,8 +189,9 @@ jobs:
           adb shell settings put global window_animation_scale 0 || true
           adb shell settings put global transition_animation_scale 0 || true
           adb shell settings put global animator_duration_scale 0 || true
-          adb shell getprop > "torture-artifacts/api-${{ matrix.api }}/getprop.txt"
-          adb devices -l | tee "torture-artifacts/api-${{ matrix.api }}/adb-devices.txt"
+          adb shell getprop > "$OUT/getprop.txt"
+          adb devices -l | tee "$OUT/adb-devices.txt"
+          adb shell getprop ro.build.version.sdk | tee "$OUT/device-api.txt"
 
       - name: Run production WebView instrumentation suite
         id: instrument
