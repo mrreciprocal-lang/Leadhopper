@@ -47,16 +47,9 @@ public class LeadHopperDataSurvivalTest {
     @After
     public void leaveDurableStateSynchronized() throws Exception {
         if (webView == null) return;
-        String result = evalString(
-                "if(!window.__LH_STORAGE_READY__||typeof state==='undefined'||!state||typeof saveAll!=='function')return 'not-ready';" +
-                        "saveAll();" +
-                        "var raw=localStorage.getItem(STORE_KEY);" +
-                        "if(!window.AndroidBridge||typeof AndroidBridge.recoverSnapshot!=='function')return 'no-native-bridge';" +
-                        "var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));" +
-                        "if(!recovered.ok||recovered.state!==raw)return 'diverged';" +
-                        "return 'synced';"
-        );
-        assertEquals("Each persistence test must leave WebView and native journal on the same committed generation", "synced", result);
+        JSONObject result = new JSONObject(evalString("return JSON.stringify(v19VerifyDurableSync());"));
+        assertTrue("Each persistence test must leave WebView and native journal on the same committed generation: " + result, result.getBoolean("ok"));
+        assertEquals("synced", result.getString("status"));
     }
 
     private WebView findWebView(View view) {
@@ -109,6 +102,7 @@ public class LeadHopperDataSurvivalTest {
                 "prevStack:['persist-lead'],noEnglish:[{leadId:'persist-lead',lang:'Spanish',notes:'test',t:'2026-09-12T19:00:00.000Z'}]," +
                 "priorityLeadIds:['persist-lead'],customButtons:[{id:'custom-1',label:'Later',snoozeDays:3,enabled:true}]," +
                 "suppression:{dnc:[{id:'dnc-1',phone:'3175550111',displayName:'Dnc Person',createdAt:'2026-09-12T18:00:00.000Z'}],wrongNumbers:[{id:'wn-1',key:'wrong|person|3175550222',phone:'3175550222',nameKey:'wrong|person',displayName:'Wrong Person',createdAt:'2026-09-12T18:30:00.000Z'}]}," +
+                "phoneQueue:{'3175550199':{phone:'3175550199',ownerLeadId:'persist-lead',nextEligibleAt:null,removedFromCold:false,reason:'Callback',updatedAt:'2026-09-12T20:02:00.000Z'}}," +
                 "settings:{cphGoal:20,notInterestedDays:45,unlockMinutes:30,appointmentSpacingMinutes:120}," +
                 "callSession:{startedAt:'2026-09-12T19:30:00.000Z'},activeTab:'schedule',schemaVersion:13" +
                 "})";
@@ -145,6 +139,7 @@ public class LeadHopperDataSurvivalTest {
                         "prev:state.prevStack[0],custom:state.customButtons[0]&&state.customButtons[0].id," +
                         "dnc:state.suppression.dnc[0]&&state.suppression.dnc[0].id," +
                         "wrong:state.suppression.wrongNumbers[0]&&state.suppression.wrongNumbers[0].id," +
+                        "phoneOwner:state.phoneQueue['3175550199']&&state.phoneQueue['3175550199'].ownerLeadId," +
                         "noEnglish:state.noEnglish[0]&&state.noEnglish[0].lang" +
                         "});"
         );
@@ -162,6 +157,7 @@ public class LeadHopperDataSurvivalTest {
         assertEquals("custom-1", o.getString("custom"));
         assertEquals("dnc-1", o.getString("dnc"));
         assertEquals("wn-1", o.getString("wrong"));
+        assertEquals("persist-lead", o.getString("phoneOwner"));
         assertEquals("Spanish", o.getString("noEnglish"));
     }
 
@@ -195,30 +191,26 @@ public class LeadHopperDataSurvivalTest {
                         "window.__capturedBackup=null;" +
                         "downloadText=function(filename,text,mime){window.__capturedBackup={filename:filename,text:text,mime:mime}};" +
                         "var exported=exportData();" +
-                        "var env=JSON.parse(window.__capturedBackup.text);" +
-                        "state.leads=[];state.schedule=[];state.callLog=[];state.activityLog=[];state.cursorLeadId=null;" +
-                        "var restored=v19ApplyBackupText(window.__capturedBackup.text,false);" +
+                        "var env=JSON.parse(window.__capturedBackup.text);var expected=JSON.stringify(env.state);" +
+                        "state={leads:[],schedule:[],callLog:[],activityLog:[],currentIndex:0,cursorLeadId:null,holdLeadId:null,overrideLeadId:null,advance:{ready:false,leadId:null,disp:null,t:null},prevStack:[],noEnglish:[],priorityLeadIds:[],customButtons:[],suppression:{dnc:[],wrongNumbers:[]},phoneQueue:{},settings:{cphGoal:0,notInterestedDays:0,unlockMinutes:0,appointmentSpacingMinutes:0},activeTab:'hopper',schemaVersion:13};saveAll();" +
+                        "var wiped=state.leads.length===0&&state.schedule.length===0&&Object.keys(state.phoneQueue).length===0;" +
+                        "var restored=v19ApplyBackupText(window.__capturedBackup.text,false);var exact=JSON.stringify(state)===expected;" +
                         "var beforeBad=localStorage.getItem(STORE_KEY);var rejected=false;" +
                         "try{v19ApplyBackupText('{bad json',false)}catch(e){rejected=true}" +
                         "var afterBad=localStorage.getItem(STORE_KEY);" +
-                        "return JSON.stringify({exported:exported,format:env.format,version:env.backupVersion,mime:window.__capturedBackup.mime,restored:restored,rejected:rejected,unchanged:beforeBad===afterBad,lead:state.leads[0]&&state.leads[0].id,note:state.leads[0]&&state.leads[0].notes,schedule:state.schedule[0]&&state.schedule[0].id,call:state.callLog[0]&&state.callLog[0].id,activity:state.activityLog[0]&&state.activityLog[0].id,custom:state.customButtons[0]&&state.customButtons[0].id,dnc:state.suppression.dnc[0]&&state.suppression.dnc[0].id,wrong:state.suppression.wrongNumbers[0]&&state.suppression.wrongNumbers[0].id,tab:state.activeTab});"
+                        "return JSON.stringify({exported:exported,format:env.format,version:env.backupVersion,mime:window.__capturedBackup.mime,wiped:wiped,restored:restored,exact:exact,rejected:rejected,unchanged:beforeBad===afterBad,lead:state.leads[0]&&state.leads[0].id,phoneOwner:state.phoneQueue['3175550199']&&state.phoneQueue['3175550199'].ownerLeadId});"
         );
         JSONObject o = new JSONObject(json);
         assertTrue(o.getBoolean("exported"));
         assertEquals("lead-hopper-full-backup", o.getString("format"));
         assertEquals(1, o.getInt("version"));
         assertEquals("application/json", o.getString("mime"));
+        assertTrue("The test must actually destroy the live operational state before restore", o.getBoolean("wiped"));
         assertTrue(o.getBoolean("restored"));
+        assertTrue("Restore must reproduce the exported operational state byte-for-byte after JSON serialization", o.getBoolean("exact"));
         assertTrue(o.getBoolean("rejected"));
-        assertTrue(o.getBoolean("unchanged"));
+        assertTrue("Rejected garbage must not mutate the restored durable state", o.getBoolean("unchanged"));
         assertEquals("persist-lead", o.getString("lead"));
-        assertEquals("durable note", o.getString("note"));
-        assertEquals("persist-cb", o.getString("schedule"));
-        assertEquals("persist-call", o.getString("call"));
-        assertEquals("persist-act", o.getString("activity"));
-        assertEquals("custom-1", o.getString("custom"));
-        assertEquals("dnc-1", o.getString("dnc"));
-        assertEquals("wn-1", o.getString("wrong"));
-        assertEquals("schedule", o.getString("tab"));
+        assertEquals("persist-lead", o.getString("phoneOwner"));
     }
 }
