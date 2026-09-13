@@ -11,6 +11,7 @@ on:
       - '.github/workflows/android-torture.yml'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
+      - 'gradle.properties'
 
 concurrency:
   group: leadhopper-torture-${{ github.ref }}
