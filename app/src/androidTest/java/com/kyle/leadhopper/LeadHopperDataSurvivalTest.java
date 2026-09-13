@@ -48,8 +48,13 @@ public class LeadHopperDataSurvivalTest {
     public void leaveDurableStateSynchronized() throws Exception {
         if (webView == null) return;
         String result = evalString(
-                "if(!window.__LH_STORAGE_READY__||!window.state||typeof saveAll!=='function')return 'not-ready';" +
-                        "saveAll();return 'synced';"
+                "if(!window.__LH_STORAGE_READY__||typeof state==='undefined'||!state||typeof saveAll!=='function')return 'not-ready';" +
+                        "saveAll();" +
+                        "var raw=localStorage.getItem(STORE_KEY);" +
+                        "if(!window.AndroidBridge||typeof AndroidBridge.recoverSnapshot!=='function')return 'no-native-bridge';" +
+                        "var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));" +
+                        "if(!recovered.ok||recovered.state!==raw)return 'diverged';" +
+                        "return 'synced';"
         );
         assertEquals("Each persistence test must leave WebView and native journal on the same committed generation", "synced", result);
     }
@@ -121,7 +126,7 @@ public class LeadHopperDataSurvivalTest {
     public void richPersistedStateSurvivesRealReload() throws Exception {
         String fixture = richFixtureScript("Persistence");
         assertEquals("seeded", evalString(
-                "var s=" + fixture + ";state=s;localStorage.setItem(STORE_KEY,JSON.stringify(s));return 'seeded';"
+                "var s=" + fixture + ";state=s;return saveAll()?'seeded':'not-seeded';"
         ));
 
         String oldGeneration = evalString("return window.__LH_PAGE_GENERATION__;");
