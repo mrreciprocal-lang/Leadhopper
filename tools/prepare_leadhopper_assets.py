@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "app" / "src" / "main" / "assets"
 INDEX = ASSETS / "index.html"
 
+PRE_V13_PATCH = ("v19DataSurvivalScript", "v19_data_survival.html")
+
 PATCHES = [
     ("v13HotfixScript", "v13_hotfix.html"),
     ("v13LayoutOrderScript", "v13_layout_order.html"),
@@ -23,7 +25,6 @@ PATCHES = [
     ("v16HopperUiRepairScript", "v16_hopper_ui_repair.html"),
     ("v17UiNotesScript", "v17_ui_notes.html"),
     ("v18ActivityReportsRepairScript", "v18_activity_reports_repair.html"),
-    ("v19DataSurvivalScript", "v19_data_survival.html"),
 ]
 
 
@@ -36,6 +37,13 @@ def restore_base() -> str:
     return gzip.decompress(raw).decode("utf-8")
 
 
+def insert_before_v13(document: str, fragment: str) -> str:
+    marker = '<script id="v13Script">'
+    if document.count(marker) != 1:
+        raise RuntimeError("Expected exactly one V13 bootstrap script marker")
+    return document.replace(marker, fragment + "\n" + marker, 1)
+
+
 def insert_before_final_body(document: str, fragment: str) -> str:
     head, sep, tail = document.rpartition("</body>")
     if not sep:
@@ -45,12 +53,18 @@ def insert_before_final_body(document: str, fragment: str) -> str:
 
 def validate(text: str) -> None:
     init = text.find("function init()")
+    v13 = text.find('<script id="v13Script">')
     final_body = text.rfind("</body>")
     final_html = text.rfind("</html>")
-    if init < 0 or final_body < 0 or final_html < final_body:
+    if init < 0 or v13 < 0 or final_body < 0 or final_html < final_body:
         raise RuntimeError("Production HTML skeleton is malformed")
     if not text.rstrip().endswith("</html>"):
         raise RuntimeError("Production HTML must end with </html>")
+
+    pre_marker, _ = PRE_V13_PATCH
+    pre_token = f'id="{pre_marker}"'
+    if text.count(pre_token) != 1 or not (init < text.find(pre_token) < v13):
+        raise RuntimeError("Data survival patch must execute exactly once before V13 bootstrap")
 
     for marker, _ in PATCHES:
         token = f'id="{marker}"'
@@ -58,7 +72,7 @@ def validate(text: str) -> None:
         if count != 1:
             raise RuntimeError(f"Patch marker {marker} expected exactly once, found {count}")
         pos = text.find(token)
-        if pos <= init or pos >= final_body:
+        if pos <= v13 or pos >= final_body:
             raise RuntimeError(f"Patch marker {marker} is outside expected post-app location")
 
     required = [
@@ -73,6 +87,7 @@ def validate(text: str) -> None:
         "v18MenuHome",
         "v18ActivityNav",
         "v17LeadNotesInput",
+        "lead-hopper-full-backup",
         "grid-template-columns:repeat(4,minmax(0,1fr))!important",
         "height:78px!important",
         "height:64px!important",
@@ -84,13 +99,17 @@ def validate(text: str) -> None:
 
 def main() -> None:
     text = restore_base()
+    pre_marker, pre_filename = PRE_V13_PATCH
+    pre_fragment = (ASSETS / pre_filename).read_text(encoding="utf-8")
+    if f'id="{pre_marker}"' not in text:
+        text = insert_before_v13(text, pre_fragment)
     for marker, filename in PATCHES:
         fragment = (ASSETS / filename).read_text(encoding="utf-8")
         if f'id="{marker}"' not in text:
             text = insert_before_final_body(text, fragment)
     validate(text)
     INDEX.write_text(text, encoding="utf-8")
-    print(f"Prepared {INDEX.relative_to(ROOT)}: {len(text.encode('utf-8'))} bytes, {len(PATCHES)} locked patch fragments")
+    print(f"Prepared {INDEX.relative_to(ROOT)}: {len(text.encode('utf-8'))} bytes, 1 pre-init guard, {len(PATCHES)} post-app patch fragments")
 
 
 if __name__ == "__main__":
