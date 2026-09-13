@@ -14,7 +14,7 @@ on:
       - 'gradle.properties'
 
 concurrency:
-  group: leadhopper-torture-v3-${{ github.ref }}
+  group: leadhopper-torture-v4-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -155,8 +155,6 @@ jobs:
           mkdir -p "$OUT"
           sudo chmod 666 /dev/kvm 2>/dev/null || true
 
-          # GitHub Actions changes HOME in several actions. Pin the AVD directory so
-          # avdmanager and emulator cannot disagree about where the virtual device lives.
           export ANDROID_AVD_HOME="$RUNNER_TEMP/leadhopper-avd-${{ matrix.api }}"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
@@ -170,8 +168,10 @@ jobs:
             --device "pixel_2"
 
           avdmanager list avd | tee "$OUT/avd-list.txt"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | tee "$OUT/emulator-list-avds.txt"
           find "$ANDROID_AVD_HOME" -maxdepth 3 -type f -print | sort | tee "$OUT/avd-files.txt"
           test -f "$ANDROID_AVD_HOME/leadhopper-api-${{ matrix.api }}.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fxq "leadhopper-api-${{ matrix.api }}"
 
           nohup "$ANDROID_HOME/emulator/emulator" \
             -avd "leadhopper-api-${{ matrix.api }}" \
@@ -206,13 +206,30 @@ jobs:
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Run visual viewport and font-scale sweeps
-        if: always() && steps.emulator.outcome == 'success' && matrix.api == 35
+      - name: Reinstall app and test APKs for post-instrumentation abuse
+        id: reinstall
+        if: always() && steps.emulator.outcome == 'success'
         shell: bash
         run: |
+          OUT="torture-artifacts/api-${{ matrix.api }}"
+          adb install -r app/build/outputs/apk/debug/app-debug.apk | tee "$OUT/reinstall-app.txt"
+          adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk | tee "$OUT/reinstall-test.txt"
+          adb shell pm list packages | grep -Fxq 'package:com.kyle.leadhopper'
+          adb shell pm list packages | grep -Fxq 'package:com.kyle.leadhopper.test'
+          adb shell pm list instrumentation | tee "$OUT/instrumentation-list.txt"
+          adb shell pm list instrumentation | grep -Fq 'com.kyle.leadhopper.test/androidx.test.runner.AndroidJUnitRunner'
+          adb shell am start -W -n com.kyle.leadhopper/.MainActivity | tee "$OUT/reinstall-launch.txt"
+
+      - name: Run visual viewport and font-scale sweeps
+        id: visual
+        if: always() && steps.reinstall.outcome == 'success' && matrix.api == 35
+        shell: bash
+        run: |
+          OUT="torture-artifacts/api-${{ matrix.api }}"
           PKG=com.kyle.leadhopper.test
           RUNNER=androidx.test.runner.AndroidJUnitRunner
           CLASS='com.kyle.leadhopper.LeadHopperTortureTest#captureVisualSweep'
+          visual_fail=0
 
           run_sweep () {
             prefix="$1"; size="$2"; density="$3"; scale="$4"
@@ -221,11 +238,17 @@ jobs:
             adb shell settings put system font_scale "$scale" || true
             adb shell am force-stop com.kyle.leadhopper || true
             sleep 1
+            set +e
             timeout 90 adb shell am instrument -w -r \
               -e class "$CLASS" \
               -e shotPrefix "$prefix" \
               "$PKG/$RUNNER" \
-              | tee "torture-artifacts/api-${{ matrix.api }}/visual-${prefix}.txt" || true
+              2>&1 | tee "$OUT/visual-${prefix}.txt"
+            code=${PIPESTATUS[0]}
+            set -e
+            if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' "$OUT/visual-${prefix}.txt"; then code=1; fi
+            echo "$code" > "$OUT/visual-${prefix}-exit-code.txt"
+            [ "$code" = "0" ] || visual_fail=1
           }
 
           run_sweep compact 1080x1920 480 1.0
@@ -234,10 +257,13 @@ jobs:
           adb shell wm size reset || true
           adb shell wm density reset || true
           adb shell settings put system font_scale 1.0 || true
+          echo "$visual_fail" > "$OUT/visual-exit-code.txt"
+          echo "exit_code=$visual_fail" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Run ornery-toddler Monkey abuse
         id: monkey
-        if: always() && steps.emulator.outcome == 'success'
+        if: always() && steps.reinstall.outcome == 'success'
         shell: bash
         run: |
           OUT="torture-artifacts/api-${{ matrix.api }}"
@@ -245,6 +271,7 @@ jobs:
           adb logcat -c
           adb shell am force-stop com.kyle.leadhopper
           adb shell am start -W -n com.kyle.leadhopper/.MainActivity > "$OUT/launch-before-monkey.txt" 2>&1
+          launch_code=$?
           timeout 150 adb shell monkey \
             -p com.kyle.leadhopper \
             -s 17625 \
@@ -270,6 +297,9 @@ jobs:
           if grep -Eiq 'FATAL EXCEPTION|ANR in com\.kyle\.leadhopper|Process: com\.kyle\.leadhopper.*has died|chromium.*(Uncaught|FATAL)' "$OUT/logcat-after-monkey.txt"; then
             crash=1
           fi
+          if grep -Eiq 'No activities found to run|monkey aborted' "$OUT/monkey.txt"; then monkey_code=98; fi
+          if [ "$launch_code" != "0" ]; then monkey_code=97; fi
+          echo "$launch_code" > "$OUT/launch-before-monkey-exit-code.txt"
           echo "$monkey_code" > "$OUT/monkey-exit-code.txt"
           echo "$crash" > "$OUT/crash-scan.txt"
           echo "monkey_code=$monkey_code" >> "$GITHUB_OUTPUT"
@@ -300,16 +330,24 @@ jobs:
         shell: bash
         run: |
           boot="${{ steps.emulator.outcome }}"
+          reinstall="${{ steps.reinstall.outcome }}"
           test_code="${{ steps.instrument.outputs.exit_code }}"
+          visual_code="${{ steps.visual.outputs.exit_code }}"
           crash="${{ steps.monkey.outputs.crash }}"
           monkey_code="${{ steps.monkey.outputs.monkey_code }}"
           [ "$boot" = "success" ] || { echo "Emulator failed to boot."; exit 1; }
+          [ "$reinstall" = "success" ] || { echo "App/test APK reinstall failed."; exit 1; }
           [ -n "$test_code" ] || test_code=99
           [ -n "$crash" ] || crash=1
           [ -n "$monkey_code" ] || monkey_code=99
+          if [ "${{ matrix.api }}" = "35" ]; then
+            [ -n "$visual_code" ] || visual_code=99
+          else
+            visual_code=0
+          fi
 
-          echo "boot=$boot instrumentation=$test_code monkey=$monkey_code crash_scan=$crash"
-          if [ "$test_code" != "0" ] || [ "$crash" != "0" ] || [ "$monkey_code" != "0" ]; then
+          echo "boot=$boot reinstall=$reinstall instrumentation=$test_code visual=$visual_code monkey=$monkey_code crash_scan=$crash"
+          if [ "$test_code" != "0" ] || [ "$visual_code" != "0" ] || [ "$crash" != "0" ] || [ "$monkey_code" != "0" ]; then
             echo "Lead Hopper emulator torture gate failed. Inspect uploaded evidence."
             exit 1
           fi
