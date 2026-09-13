@@ -114,6 +114,19 @@ final class MigrationSnapshotStore {
         write(journal);
     }
 
+    /** Abort a known staged generation after the paired WebView write failed.
+     * This is deliberately generation-checked so an older failure can never erase a
+     * newer in-flight snapshot. The previous committed generation is untouched.
+     */
+    synchronized void abort(long generation) throws Exception {
+        JSONObject journal = read();
+        JSONObject pending = journal.optJSONObject("pending");
+        if(pending == null) return;
+        if(pending.getLong("generation") != generation) throw new IllegalStateException("Stale snapshot generation");
+        journal.remove("pending");
+        write(journal);
+    }
+
     synchronized String recover(String local) throws Exception {
         JSONObject journal = read();
         JSONObject pending = journal.optJSONObject("pending");
