@@ -56,6 +56,22 @@ public class MigrationSnapshotStoreTest {
         try{store.commit(old);fail("Stale commit accepted");}catch(IllegalStateException expected){}
         store.commit(latest);assertEquals(state("latest"),store.recover(null));
     }
+    @Test public void abortDropsOnlyMatchingPendingGeneration() throws Exception {
+        File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
+        String old=state("old");store.commit(store.stage(old));
+        long pending=store.stage(state("new"));store.abort(pending);
+        MigrationSnapshotStore reopened=new MigrationSnapshotStore(directory);
+        assertEquals("Aborting a failed staged write must preserve the previous committed generation",old,reopened.recover(old));
+        assertEquals(old,reopened.recover(null));
+    }
+    @Test public void staleAbortCannotDeleteNewerPendingGeneration() throws Exception {
+        MigrationSnapshotStore store=new MigrationSnapshotStore(directory());
+        long old=store.stage(state("old"));
+        long latest=store.stage(state("latest"));
+        try{store.abort(old);fail("Stale abort accepted");}catch(IllegalStateException expected){}
+        store.commit(latest);
+        assertEquals(state("latest"),store.recover(null));
+    }
     @Test public void corruptSnapshotFailsClosed() throws Exception {
         File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
         store.commit(store.stage(state("old")));
