@@ -16,6 +16,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +42,16 @@ public class LeadHopperDataSurvivalTest {
         });
         assertNotNull("MainActivity must contain the production WebView", webView);
         waitForJs("return document.readyState==='complete' && !!window.__LH_STORAGE_READY__ && !!window.__LH_V19_DATA_SURVIVAL__;", 15_000);
+    }
+
+    @After
+    public void leaveDurableStateSynchronized() throws Exception {
+        if (webView == null) return;
+        String result = evalString(
+                "if(!window.__LH_STORAGE_READY__||!window.state||typeof saveAll!=='function')return 'not-ready';" +
+                        "saveAll();return 'synced';"
+        );
+        assertEquals("Each persistence test must leave WebView and native journal on the same committed generation", "synced", result);
     }
 
     private WebView findWebView(View view) {
