@@ -1,0 +1,201 @@
+<style id="phase0ContractRepairsStyles">
+#phase0ClusterBadge{display:inline-flex;align-items:center;justify-content:center;margin-left:7px;min-width:30px;height:26px;padding:0 8px;border-radius:999px;border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.12);color:inherit;font:inherit;font-size:11px;font-weight:900;vertical-align:middle}
+#phase0ClusterList{display:grid;gap:7px;margin-top:10px}
+.phase0-cluster-row{padding:8px 10px;border:1px solid rgba(148,163,184,.16);border-radius:11px;background:rgba(15,23,42,.30)}
+.phase0-cluster-row .phase0-cluster-status{font-size:10px;color:var(--muted,#94a3b8);margin-top:2px}
+.phase0-archived-schedule{display:inline-flex;margin-left:6px;padding:2px 6px;border-radius:999px;border:1px solid rgba(251,146,60,.35);background:rgba(251,146,60,.10);font-size:10px;font-weight:800;color:inherit}
+</style>
+<div class="modal hidden" id="phase0ClusterModal">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-title">Other people at this number</div>
+    <div class="modal-sub">Reference only. Opening this list does not change the active person.</div>
+    <div id="phase0ClusterList"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="phase0CloseCluster()">Close</button></div>
+  </div>
+</div>
+<script id="phase0ContractRepairsScript">
+(function(){
+  if(window.__LH_PHASE0_CONTRACT_REPAIRS__) return;
+  window.__LH_PHASE0_CONTRACT_REPAIRS__=true;
+
+  function personName(lead){
+    if(!lead) return '';
+    return (safeText(lead.firstName)+' '+safeText(lead.lastName)).trim();
+  }
+  function nameKey(lead){
+    return (safeText(lead.firstName).toLowerCase()+'|'+safeText(lead.lastName).toLowerCase());
+  }
+  function personCompare(a,b){
+    var al=safeText(a.lastName).toLowerCase(), bl=safeText(b.lastName).toLowerCase();
+    if(al<bl) return -1;if(al>bl) return 1;
+    var af=safeText(a.firstName).toLowerCase(), bf=safeText(b.firstName).toLowerCase();
+    if(af<bf) return -1;if(af>bf) return 1;
+    return String(a.id||'').localeCompare(String(b.id||''));
+  }
+  function clusterMembers(phone){
+    var p=cleanPhone(phone), seen={}, out=[];
+    if(!p) return out;
+    (state.leads||[]).forEach(function(lead){
+      if(cleanPhone(lead.phone)!==p) return;
+      var k=nameKey(lead);
+      if(seen[k]) return;
+      seen[k]=true;out.push(lead);
+    });
+    out.sort(personCompare);return out;
+  }
+
+  // One ordinary cold-Hopper opportunity per normalized phone number. Due callbacks
+  // remain person-specific and therefore keep their exact scheduled owner.
+  var baseEligibleLeads=window.eligibleLeads;
+  window.eligibleLeads=eligibleLeads=function(){
+    var base=baseEligibleLeads();
+    var byId={};base.forEach(function(lead){byId[lead.id]=lead;});
+    var due=(state.schedule||[]).filter(function(item){
+      return item.type==='callback'&&!item.done&&new Date(item.when).getTime()<=Date.now()&&byId[item.leadId];
+    }).sort(function(a,b){
+      return new Date(a.when)-new Date(b.when)||new Date(a.createdAt||0)-new Date(b.createdAt||0)||String(a.id).localeCompare(String(b.id));
+    });
+    var out=[], included={}, claimedPhones={};
+    due.forEach(function(item){
+      var lead=byId[item.leadId];if(!lead||included[lead.id])return;
+      out.push(lead);included[lead.id]=true;
+      var p=cleanPhone(lead.phone);if(p)claimedPhones[p]=true;
+    });
+
+    var groups={};
+    base.forEach(function(lead,index){
+      if(included[lead.id]) return;
+      var p=cleanPhone(lead.phone);
+      if(p&&claimedPhones[p]) return;
+      var key=p?'p:'+p:'id:'+lead.id;
+      if(!groups[key])groups[key]={rank:index,members:[]};
+      if(index<groups[key].rank)groups[key].rank=index;
+      groups[key].members.push(lead);
+    });
+    Object.keys(groups).map(function(key){return groups[key];}).sort(function(a,b){return a.rank-b.rank;}).forEach(function(group){
+      group.members.sort(personCompare);
+      var representative=group.members[0];
+      if(representative&&!included[representative.id]){out.push(representative);included[representative.id]=true;}
+    });
+    return out;
+  };
+
+  window.phase0CloseCluster=function(){
+    var modal=document.getElementById('phase0ClusterModal');if(modal)modal.classList.add('hidden');
+  };
+  window.phase0OpenCluster=function(phone,activeLeadId){
+    var activeBefore=getCurrentLead();
+    var members=clusterMembers(phone).filter(function(lead){return String(lead.id)!==String(activeLeadId);});
+    var list=document.getElementById('phase0ClusterList');if(!list)return false;
+    list.innerHTML='';
+    members.forEach(function(lead){
+      var row=document.createElement('div');row.className='phase0-cluster-row';
+      var name=document.createElement('div');name.textContent=personName(lead)||'Unnamed person';name.style.fontWeight='800';row.appendChild(name);
+      var status=document.createElement('div');status.className='phase0-cluster-status';
+      status.textContent=(lead.active===false?'Archived • ':'')+(leadDisposition(lead)||'New');row.appendChild(status);
+      list.appendChild(row);
+    });
+    var modal=document.getElementById('phase0ClusterModal');if(modal)modal.classList.remove('hidden');
+    var activeAfter=getCurrentLead();
+    return (!activeBefore&&!activeAfter)||(activeBefore&&activeAfter&&activeBefore.id===activeAfter.id);
+  };
+
+  var baseRenderLead=window.renderLead;
+  window.renderLead=renderLead=function(){
+    baseRenderLead.apply(this,arguments);
+    var lead=getCurrentLead(), block=document.getElementById('leadBlock');
+    if(!lead||!block)return;
+    var members=clusterMembers(lead.phone);
+    if(members.length<2)return;
+    var title=block.querySelector('.lead-title');if(!title)return;
+    var old=document.getElementById('phase0ClusterBadge');if(old)old.remove();
+    var badge=document.createElement('button');badge.type='button';badge.id='phase0ClusterBadge';badge.textContent='+'+(members.length-1);
+    badge.setAttribute('aria-label',(members.length-1)+' other people share this phone number');
+    badge.onclick=function(e){e.preventDefault();e.stopPropagation();phase0OpenCluster(lead.phone,lead.id);};
+    title.appendChild(badge);
+  };
+
+  // Replace already archives omitted people in V13. Make unresolved scheduled work visibly
+  // attached to those archived records instead of looking like an orphaned schedule row.
+  var baseRenderSchedule=window.renderSchedule;
+  window.renderSchedule=renderSchedule=function(){
+    baseRenderSchedule.apply(this,arguments);
+    var list=document.getElementById('scheduleList');if(!list)return;
+    Array.prototype.slice.call(list.querySelectorAll('button[onclick*="jumpToLead"]')).forEach(function(button){
+      var attr=button.getAttribute('onclick')||'';
+      var match=attr.match(/jumpToLead\('([^']+)'/);if(!match)return;
+      var lead=(state.leads||[]).find(function(x){return String(x.id)===match[1];});
+      if(!lead||lead.active!==false)return;
+      var card=button.closest('.card');if(!card||card.querySelector('.phase0-archived-schedule'))return;
+      var title=card.querySelector('.title');if(!title)return;
+      var marker=document.createElement('span');marker.className='phase0-archived-schedule';marker.textContent='Archived from active list';title.appendChild(marker);
+      button.textContent='Archived lead';button.disabled=true;button.title='The scheduled item is preserved. Reactivate this person through a future roster/import correction before working them.';
+    });
+  };
+
+  function historyAdded(beforeHistory,afterHistory){
+    var counts={};(beforeHistory||[]).forEach(function(item){var sig=JSON.stringify(item);counts[sig]=(counts[sig]||0)+1;});
+    var added=[];(afterHistory||[]).forEach(function(item){var sig=JSON.stringify(item);if(counts[sig])counts[sig]-=1;else added.push(item);});return added;
+  }
+
+  // Snapshot remains a full business-state rollback point, but now also records the person
+  // whose action created the audit event so Undo can reverse business effects without erasing history.
+  window.snapshot=snapshot=function(note){
+    try{
+      var lead=typeof getCurrentLead==='function'?getCurrentLead():null;
+      lastSnapshot={state:JSON.stringify(state),note:note||'',leadId:lead&&lead.id?lead.id:null,createdAt:nowISO()};
+    }catch(err){lastSnapshot=null;}
+  };
+
+  window.restoreSnapshot=restoreSnapshot=function(){
+    if(!lastSnapshot)return false;
+    var run=function(){
+      var snap=lastSnapshot;
+      var before=JSON.parse(snap.state);
+      var after=state;
+      var reversedAt=nowISO();
+      var reversalId=uid();
+      var beforeActivityIds={};
+      (before.activityLog||[]).forEach(function(item){if(item&&item.id)beforeActivityIds[item.id]=true;});
+      var newActivities=(after.activityLog||[]).filter(function(item){return item&&(!item.id||!beforeActivityIds[item.id]);});
+      var beforeLeadById={};(before.leads||[]).forEach(function(lead){beforeLeadById[lead.id]=lead;});
+      var addedHistoryByLead={};
+      (after.leads||[]).forEach(function(lead){
+        var oldLead=beforeLeadById[lead.id];if(!oldLead)return;
+        var added=historyAdded(oldLead.history||[],lead.history||[]);if(added.length)addedHistoryByLead[lead.id]=added;
+      });
+
+      state=before;
+      state.activityLog=state.activityLog||[];
+      for(var i=newActivities.length-1;i>=0;i--){
+        var activity=JSON.parse(JSON.stringify(newActivities[i]));
+        activity.reversed=true;activity.reversedAt=reversedAt;activity.reversalId=reversalId;
+        state.activityLog.unshift(activity);
+      }
+      Object.keys(addedHistoryByLead).forEach(function(leadId){
+        var restoredLead=(state.leads||[]).find(function(x){return String(x.id)===String(leadId);});if(!restoredLead)return;
+        restoredLead.history=restoredLead.history||[];
+        var added=addedHistoryByLead[leadId];
+        for(var j=added.length-1;j>=0;j--){
+          var history=JSON.parse(JSON.stringify(added[j]));
+          history.reversed=true;history.reversedAt=reversedAt;history.reversalId=reversalId;
+          if(!history.auditId)history.auditId=uid();
+          restoredLead.history.unshift(history);
+        }
+      });
+      var target=(state.leads||[]).find(function(x){return String(x.id)===String(snap.leadId||'');});
+      if(target){
+        target.history=target.history||[];
+        target.history.unshift({t:reversedAt,action:'undo',value:snap.note||'action',reversalId:reversalId});
+      }
+      state.activityLog.unshift({id:uid(),t:reversedAt,leadId:snap.leadId||null,type:'Undo',detail:'Reversed '+(snap.note||'previous action'),reversalId:reversalId,reverses:newActivities.map(function(x){return x.id||null;}).filter(Boolean)});
+      lastSnapshot=null;
+      saveAll();renderAll();return true;
+    };
+    return typeof window.v19Transaction==='function'?window.v19Transaction(run):run();
+  };
+
+  // Re-render once with the consolidated queue/cluster rules installed.
+  try{renderAll();}catch(_e){}
+})();
+</script>
