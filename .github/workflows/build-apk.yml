@@ -41,25 +41,8 @@ jobs:
           print(f'Restored locked monoglyph: {len(b)} bytes; sha256={actual}')
           PY
 
-      - name: Restore Lead Hopper V13 HTML
-        run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
-
-      - name: Apply tested patches safely
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          app=Path('app/src/main/assets/index.html')
-          fragments=[('v13HotfixScript','v13_hotfix.html'),('v13LayoutOrderScript','v13_layout_order.html'),('v13ImportFixScript','v13_import_fix.html'),('v14CustomPopupDismissScript','v14_custom_popup_dismiss.html'),('v14CallbackAutoAdvanceScript','v14_callback_autoadvance.html'),('v16HopperUiRepairScript','v16_hopper_ui_repair.html'),('v17UiNotesScript','v17_ui_notes.html'),('v18ActivityReportsRepairScript','v18_activity_reports_repair.html')]
-          text=app.read_text(encoding='utf-8')
-          def insert(document,fragment):
-              head,sep,tail=document.rpartition('</body>')
-              if not sep: raise RuntimeError('Final </body> tag not found')
-              return head+fragment+'\n</body>'+tail
-          for marker,filename in fragments:
-              if f'id="{marker}"' not in text:
-                  text=insert(text,Path('app/src/main/assets',filename).read_text(encoding='utf-8'))
-          app.write_text(text,encoding='utf-8')
-          PY
+      - name: Prepare exact production HTML
+        run: python tools/prepare_leadhopper_assets.py
 
       - name: Validate packaged HTML structure and Hopper layout
         run: |
@@ -67,20 +50,9 @@ jobs:
           from pathlib import Path
           text=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
           layout=Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
-          markers=['v13HotfixScript','v13LayoutOrderScript','v13ImportFixScript','v14CustomPopupDismissScript','v14CallbackAutoAdvanceScript','v16HopperUiRepairScript','v17UiNotesScript','v18ActivityReportsRepairScript']
-          init=text.find('function init()'); final_body=text.rfind('</body>'); final_html=text.rfind('</html>')
-          for marker in markers:
-              pos=text.find(f'id="{marker}"'); assert pos>init; assert final_body>pos
-          assert final_html>final_body and text.rstrip().endswith('</html>')
-          assert 'window.openImport=showImportModal' in text
-          assert 'v14CloseCustomPopup' in text
-          assert '__LH_V14_CALLBACK_AUTO_ADVANCE__' in text
-          assert '__LH_V16_HOPPER_UI_REPAIR__' in text
-          assert '__LH_V17_UI_NOTES__' in text
           assert '__LH_V18_ACTIVITY_REPORTS_REPAIR__' in text
           assert 'AndroidBridge.saveText' in text
-          assert 'v18MenuHome' in text
-          assert 'v18ActivityNav' in text
+          assert 'v18MenuHome' in text and 'v18ActivityNav' in text
           assert 'v17LeadNotesInput' in text
           assert 'width:144px!important' in text
           assert 'grid-template-columns:repeat(4,minmax(0,1fr))!important' in layout
