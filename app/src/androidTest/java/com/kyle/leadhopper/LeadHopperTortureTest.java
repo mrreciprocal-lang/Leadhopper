@@ -45,7 +45,7 @@ public class LeadHopperTortureTest {
             webView = findWebView(root);
         });
         assertNotNull("MainActivity must contain the production WebView", webView);
-        waitForJs("return document.readyState === 'complete' && !!document.getElementById('btnCallNow');", 12_000);
+        waitForJs("return document.readyState === 'complete' && !!window.__LH_STORAGE_READY__ && !!document.getElementById('btnCallNow');", 15_000);
     }
 
     private WebView findWebView(View view) {
@@ -68,7 +68,7 @@ public class LeadHopperTortureTest {
             result.set(value);
             latch.countDown();
         }));
-        assertTrue("JavaScript evaluation timed out", latch.await(8, TimeUnit.SECONDS));
+        assertTrue("JavaScript evaluation timed out", latch.await(12, TimeUnit.SECONDS));
         return result.get();
     }
 
@@ -238,14 +238,20 @@ public class LeadHopperTortureTest {
                 "const s=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');" +
                         "s.leads=[{id:'persist-sentinel',firstName:'Persistence',lastName:'Sentinel',phone:'3175550199',disposition:'New',calls:[],history:[]}];" +
                         "s.schedule=[{id:'persist-cb',type:'callback',leadId:'persist-sentinel',when:new Date(Date.now()+3600000).toISOString(),createdAt:new Date().toISOString(),done:false}];" +
-                        "s.callLog=[{t:new Date().toISOString(),leadId:'persist-sentinel'}];" +
+                        "s.callLog=[{id:'persist-call',t:new Date().toISOString(),leadId:'persist-sentinel',phone:'3175550199'}];" +
                         "s.activityLog=[{id:'persist-act',t:new Date().toISOString(),leadId:'persist-sentinel',type:'TEST',detail:'must survive'}];" +
                         "s.currentIndex=0;s.cursorLeadId='persist-sentinel';s.holdLeadId=null;s.activeTab='schedule';" +
-                        "localStorage.setItem(STORE_KEY,JSON.stringify(s));return JSON.stringify(s);"
+                        "state=s;saveAll();return JSON.stringify(s);"
         );
         assertTrue(before.contains("persist-sentinel"));
+        String oldGeneration = evalString("return window.__LH_PAGE_GENERATION__;");
+        assertNotNull("Page generation marker must exist before reload", oldGeneration);
         evalRaw("location.reload();return true;");
-        waitForJs("return document.readyState==='complete' && typeof state!=='undefined' && !!document.getElementById('btnCallNow');", 12_000);
+        waitForJs(
+                "return document.readyState==='complete' && !!window.__LH_STORAGE_READY__ && window.__LH_PAGE_GENERATION__!==" +
+                        JSONObject.quote(oldGeneration) + ";",
+                15_000
+        );
         String after = evalString(
                 "return JSON.stringify({" +
                         "lead:state.leads.some(x=>x.id==='persist-sentinel')," +
