@@ -51,6 +51,7 @@
         if(typeof q.removedFromCold!=='boolean')throw new Error('Invalid phone queue removal state.');
         if(q.reason!=null&&typeof q.reason!=='string')throw new Error('Invalid phone queue reason.');
         if(q.updatedAt!=null&&!Number.isFinite(Date.parse(q.updatedAt)))throw new Error('Invalid phone queue timestamp.');
+        if(q.order!=null&&(!Number.isFinite(q.order)||q.order<0))throw new Error('Invalid phone queue order.');
       });
     }
     return candidate;
@@ -92,9 +93,16 @@
       localStorage.setItem(STORE_KEY,raw);
       if(generation!=null&&!AndroidBridge.commitSnapshot(generation))throw new Error('Native snapshot commit failed.');
     }catch(err){
-      // If local write succeeded but journal commit failed, restore the previous local generation.
-      if(localStorage.getItem(STORE_KEY)!==old){if(old==null)localStorage.removeItem(STORE_KEY);else localStorage.setItem(STORE_KEY,old);}
-      if(generation!=null)AndroidBridge.recoverSnapshot(old);
+      var rollbackError=null;
+      try{
+        if(localStorage.getItem(STORE_KEY)!==old){if(old==null)localStorage.removeItem(STORE_KEY);else localStorage.setItem(STORE_KEY,old);}
+      }catch(localErr){rollbackError=localErr;}
+      if(generation!=null){
+        try{
+          if(!window.AndroidBridge||typeof AndroidBridge.abortSnapshot!=='function'||!AndroidBridge.abortSnapshot(generation))throw new Error('Native snapshot abort failed.');
+        }catch(abortErr){rollbackError=rollbackError||abortErr;}
+      }
+      if(rollbackError)throw new Error('Snapshot rollback failed: '+rollbackError.message);
       throw err;
     }
     lastDurableRaw=raw;
