@@ -1,6 +1,6 @@
 <style id="v13LayoutOrderStyles">
 .primary-actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important}
-.primary-actions #btnCallNow{width:100%!important;height:78px!important;min-height:78px!important;padding:8px!important;border-radius:18px!important;box-shadow:0 0 0 1px rgba(134,239,172,.16),0 14px 38px rgba(16,185,129,.38)!important}
+.primary-actions #btnCallNow{width:100%!important;height:78px!important;min-height:78px!important;max-height:78px!important;padding:8px!important;border-radius:18px!important;box-shadow:0 0 0 1px rgba(134,239,172,.16),0 14px 38px rgba(16,185,129,.38)!important}
 .primary-actions #btnCallNow .btn-content{padding:15px 12px!important;font-size:20px!important;letter-spacing:.3px!important}
 
 /* Four equal columns make the two common-action rows exact 50/50 halves. */
@@ -10,15 +10,15 @@
 .secondary-actions #btnCallback{grid-column:1/3!important;grid-row:2!important}
 .secondary-actions #btnAppt{grid-column:3/5!important;grid-row:2!important}
 
-/* The four common actions directly under Call Now match Call Now's height exactly. */
+/* The four common actions directly under Call Now are exactly 3/4 of Call Now's height. */
 .secondary-actions #btnNI,
 .secondary-actions #btnNoAnswer,
 .secondary-actions #btnCallback,
 .secondary-actions #btnAppt{
   width:100%!important;
-  height:78px!important;
-  min-height:78px!important;
-  max-height:78px!important;
+  height:59px!important;
+  min-height:59px!important;
+  max-height:59px!important;
   padding:6px!important;
   border-radius:14px!important;
   box-sizing:border-box!important;
@@ -45,12 +45,12 @@
 .secondary-actions #btnStateFarm{grid-column:4!important;grid-row:3!important}
 
 @media(max-height:760px){
-  .primary-actions #btnCallNow{height:64px!important;min-height:64px!important;padding:5px!important}
+  .primary-actions #btnCallNow{height:64px!important;min-height:64px!important;max-height:64px!important;padding:5px!important}
   .primary-actions #btnCallNow .btn-content{padding:11px 8px!important;font-size:18px!important}
   .secondary-actions #btnNI,
   .secondary-actions #btnNoAnswer,
   .secondary-actions #btnCallback,
-  .secondary-actions #btnAppt{height:64px!important;min-height:64px!important;max-height:64px!important}
+  .secondary-actions #btnAppt{height:48px!important;min-height:48px!important;max-height:48px!important}
 }
 </style>
 <script id="v13LayoutOrderScript">
@@ -71,6 +71,7 @@ function applyV13LayoutOrder(){
  if(call)primary.appendChild(call);
  [ni,no,cb,appt,dnc,ne,wrong,plus].forEach(x=>{if(x)secondary.appendChild(x)});
 }
+window.applyV13LayoutOrder=applyV13LayoutOrder;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',applyV13LayoutOrder);else applyV13LayoutOrder();
 })();
 </script>
