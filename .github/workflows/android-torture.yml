@@ -1,0 +1,293 @@
+name: Lead Hopper Android Torture Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'app/**'
+      - 'tools/**'
+      - 'docs/LEAD_HOPPER_TORTURE_CONTRACT.md'
+      - '.github/workflows/android-torture.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+
+concurrency:
+  group: leadhopper-torture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-contract:
+    name: Package and static contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore locked icon assets
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          cat app/icon-src/v173/foreground.webp.b64.part* | tr -d '\r\n' | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_foreground_art.webp
+          tr -d '\r\n' < app/icon-src/v174/monoglyph.webp.b64 | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
+
+      - name: Prepare exact production HTML
+        run: python tools/prepare_leadhopper_assets.py
+
+      - name: Run hostile static sentinels
+        id: static
+        shell: bash
+        run: |
+          mkdir -p torture-artifacts/static
+          set +e
+          python tools/lead_hopper_static_torture.py | tee torture-artifacts/static/static-torture.txt
+          code=${PIPESTATUS[0]}
+          echo "$code" > torture-artifacts/static/static-exit-code.txt
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build debug, release, and instrumentation packages
+        run: gradle --no-daemon assembleDebug assembleRelease assembleDebugAndroidTest
+
+      - name: Prove tested and release WebView payloads are identical
+        shell: bash
+        run: |
+          mkdir -p torture-artifacts/package
+          unzip -p app/build/outputs/apk/debug/app-debug.apk assets/index.html > torture-artifacts/package/debug-index.html
+          unzip -p app/build/outputs/apk/release/app-release-unsigned.apk assets/index.html > torture-artifacts/package/release-index.html
+          cp app/src/main/assets/index.html torture-artifacts/package/source-index.html
+          cmp torture-artifacts/package/source-index.html torture-artifacts/package/debug-index.html
+          cmp torture-artifacts/package/source-index.html torture-artifacts/package/release-index.html
+          sha256sum torture-artifacts/package/*-index.html | tee torture-artifacts/package/index-sha256.txt
+          unzip -l app/build/outputs/apk/release/app-release-unsigned.apk > torture-artifacts/package/release-apk-contents.txt
+
+      - name: Upload package/static evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeadHopper-torture-package-contract
+          path: torture-artifacts
+          if-no-files-found: error
+
+      - name: Enforce static blockers
+        if: always()
+        shell: bash
+        run: |
+          code="${{ steps.static.outputs.exit_code }}"
+          if [ -z "$code" ]; then code=99; fi
+          if [ "$code" != "0" ]; then
+            echo "Lead Hopper static torture found blocking defects. See uploaded report."
+            exit "$code"
+          fi
+
+  emulator-torture:
+    name: Emulator torture API ${{ matrix.api }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore locked icon assets
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          cat app/icon-src/v173/foreground.webp.b64.part* | tr -d '\r\n' | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_foreground_art.webp
+          tr -d '\r\n' < app/icon-src/v174/monoglyph.webp.b64 | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
+
+      - name: Prepare exact production HTML
+        run: python tools/prepare_leadhopper_assets.py
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install emulator and API ${{ matrix.api }} image
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "system-images;android-${{ matrix.api }};google_apis;x86_64"
+
+      - name: Build app and instrumentation APKs
+        run: gradle --no-daemon assembleDebug assembleDebugAndroidTest
+
+      - name: Boot Android emulator
+        id: emulator
+        shell: bash
+        run: |
+          mkdir -p torture-artifacts/api-${{ matrix.api }}
+          sudo chmod 666 /dev/kvm 2>/dev/null || true
+          echo no | avdmanager create avd --force \
+            --name "leadhopper-api-${{ matrix.api }}" \
+            --package "system-images;android-${{ matrix.api }};google_apis;x86_64" \
+            --device "pixel_2"
+
+          nohup "$ANDROID_HOME/emulator/emulator" \
+            -avd "leadhopper-api-${{ matrix.api }}" \
+            -no-window -noaudio -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -camera-back none -camera-front none \
+            -memory 2048 \
+            > "torture-artifacts/api-${{ matrix.api }}/emulator.log" 2>&1 &
+
+          timeout 180 adb wait-for-device
+          timeout 240 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+          adb shell input keyevent 82 || true
+          adb shell settings put global window_animation_scale 0 || true
+          adb shell settings put global transition_animation_scale 0 || true
+          adb shell settings put global animator_duration_scale 0 || true
+          adb shell getprop > "torture-artifacts/api-${{ matrix.api }}/getprop.txt"
+          adb devices -l | tee "torture-artifacts/api-${{ matrix.api }}/adb-devices.txt"
+
+      - name: Run production WebView instrumentation suite
+        id: instrument
+        shell: bash
+        run: |
+          mkdir -p torture-artifacts/api-${{ matrix.api }}
+          set +e
+          gradle --no-daemon connectedDebugAndroidTest 2>&1 | tee "torture-artifacts/api-${{ matrix.api }}/connected-tests.txt"
+          code=${PIPESTATUS[0]}
+          echo "$code" > "torture-artifacts/api-${{ matrix.api }}/instrumentation-exit-code.txt"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Run visual viewport and font-scale sweeps
+        if: always() && matrix.api == 35
+        shell: bash
+        run: |
+          PKG=com.kyle.leadhopper.test
+          RUNNER=androidx.test.runner.AndroidJUnitRunner
+          CLASS='com.kyle.leadhopper.LeadHopperTortureTest#captureVisualSweep'
+
+          run_sweep () {
+            prefix="$1"; size="$2"; density="$3"; scale="$4"
+            adb shell wm size "$size" || true
+            adb shell wm density "$density" || true
+            adb shell settings put system font_scale "$scale" || true
+            adb shell am force-stop com.kyle.leadhopper || true
+            sleep 1
+            adb shell am instrument -w -r \
+              -e class "$CLASS" \
+              -e shotPrefix "$prefix" \
+              "$PKG/$RUNNER" \
+              | tee "torture-artifacts/api-${{ matrix.api }}/visual-${prefix}.txt" || true
+          }
+
+          run_sweep compact 1080x1920 480 1.0
+          run_sweep modern 1080x2340 440 1.0
+          run_sweep largefont 1080x2340 440 2.0
+          adb shell wm size reset || true
+          adb shell wm density reset || true
+          adb shell settings put system font_scale 1.0 || true
+
+      - name: Run ornery-toddler Monkey abuse
+        id: monkey
+        if: always()
+        shell: bash
+        run: |
+          OUT="torture-artifacts/api-${{ matrix.api }}"
+          set +e
+          adb logcat -c
+          adb shell am force-stop com.kyle.leadhopper
+          adb shell am start -W -n com.kyle.leadhopper/.MainActivity > "$OUT/launch-before-monkey.txt" 2>&1
+          adb shell monkey \
+            -p com.kyle.leadhopper \
+            -s 17625 \
+            --throttle 18 \
+            --pct-syskeys 0 \
+            --pct-appswitch 0 \
+            --pct-majornav 8 \
+            --pct-nav 12 \
+            --pct-touch 45 \
+            --pct-motion 25 \
+            3000 \
+            > "$OUT/monkey.txt" 2>&1
+          monkey_code=$?
+          adb logcat -d -v threadtime > "$OUT/logcat-after-monkey.txt"
+          adb shell dumpsys activity processes > "$OUT/dumpsys-processes.txt" 2>&1
+          adb shell dumpsys meminfo com.kyle.leadhopper > "$OUT/meminfo.txt" 2>&1
+          adb shell dumpsys gfxinfo com.kyle.leadhopper > "$OUT/gfxinfo.txt" 2>&1
+          adb exec-out screencap -p > "$OUT/after-monkey.png" 2>/dev/null || true
+          adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+          adb pull /sdcard/window.xml "$OUT/window.xml" >/dev/null 2>&1 || true
+
+          crash=0
+          if grep -Eiq 'FATAL EXCEPTION|ANR in com\.kyle\.leadhopper|Process: com\.kyle\.leadhopper.*has died|chromium.*(Uncaught|FATAL)' "$OUT/logcat-after-monkey.txt"; then
+            crash=1
+          fi
+          echo "$monkey_code" > "$OUT/monkey-exit-code.txt"
+          echo "$crash" > "$OUT/crash-scan.txt"
+          echo "monkey_code=$monkey_code" >> "$GITHUB_OUTPUT"
+          echo "crash=$crash" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Pull screenshots and Android test evidence
+        if: always()
+        shell: bash
+        run: |
+          OUT="torture-artifacts/api-${{ matrix.api }}"
+          mkdir -p "$OUT/screenshots" "$OUT/androidTest-results"
+          adb pull /sdcard/Android/data/com.kyle.leadhopper/files/Pictures/torture "$OUT/screenshots" >/dev/null 2>&1 || true
+          cp -R app/build/reports/androidTests "$OUT/androidTest-results/reports" 2>/dev/null || true
+          cp -R app/build/outputs/androidTest-results "$OUT/androidTest-results/raw" 2>/dev/null || true
+          adb logcat -d -v threadtime > "$OUT/final-logcat.txt" 2>/dev/null || true
+
+      - name: Upload emulator torture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeadHopper-torture-api-${{ matrix.api }}
+          path: torture-artifacts/api-${{ matrix.api }}
+          if-no-files-found: warn
+
+      - name: Enforce emulator gate
+        if: always()
+        shell: bash
+        run: |
+          test_code="${{ steps.instrument.outputs.exit_code }}"
+          crash="${{ steps.monkey.outputs.crash }}"
+          monkey_code="${{ steps.monkey.outputs.monkey_code }}"
+          [ -n "$test_code" ] || test_code=99
+          [ -n "$crash" ] || crash=1
+          [ -n "$monkey_code" ] || monkey_code=99
+
+          echo "instrumentation=$test_code monkey=$monkey_code crash_scan=$crash"
+          if [ "$test_code" != "0" ] || [ "$crash" != "0" ] || [ "$monkey_code" != "0" ]; then
+            echo "Lead Hopper emulator torture gate failed. Inspect uploaded evidence."
+            exit 1
+          fi
