@@ -1,0 +1,2948 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lead Hopper Dialer V13</title>
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg0:#070a11;
+      --bg1:#0b1020;
+      --card: rgba(255,255,255,0.06);
+      --card2: rgba(255,255,255,0.04);
+      --stroke: rgba(255,255,255,0.10);
+      --stroke2: rgba(255,255,255,0.14);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.72);
+      --muted2: rgba(255,255,255,0.58);
+      --shadow: 0 18px 48px rgba(0,0,0,0.55);
+      --shadow2: 0 10px 24px rgba(0,0,0,0.36);
+      --radius: 18px;
+      --radius2: 14px;
+
+      --green1:#22c55e; --green2:#10b981;
+      --blue1:#3b82f6;  --blue2:#2563eb;
+      --teal1:#14b8a6;  --teal2:#0d9488;
+      --slate1:#64748b; --slate2:#475569;
+      --red1:#ef4444;   --red2:#991b1b;
+      --orange1:#fb923c;--orange2:#c2410c;
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ height: 100%; }
+    body{
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color: var(--text);
+      background:
+        radial-gradient(1600px 1000px at 15% 5%, rgba(99,102,241,.22), transparent 65%),
+        radial-gradient(1400px 900px at 90% 10%, rgba(56,189,248,.18), transparent 65%),
+        radial-gradient(1600px 1100px at 50% 85%, rgba(34,197,94,.12), transparent 70%),
+        linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
+      background-repeat: no-repeat !important;
+      background-attachment: fixed !important;
+      background-size: cover !important;
+    }
+
+    .app{
+      max-width: 1120px;
+      margin: 22px auto;
+      padding: 0 14px 28px;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 14px 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(2,6,23,0.58);
+      backdrop-filter: blur(10px);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow2);
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap: 10px;
+      min-width: 0;
+    }
+    .logo{
+      width: 40px; height: 40px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--stroke);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 900;
+      letter-spacing: .5px;
+    }
+    .brand h1{
+      margin:0;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brand .sub{
+      font-size: 12px;
+      color: var(--muted2);
+      margin-top: 2px;
+    }
+    .brand-col{ min-width: 0; }
+
+    .top-actions{
+      display:flex; align-items:center; gap: 10px; flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .pill b{ color: var(--text); }
+    .mini{
+      font-size: 12px;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+
+    .card{
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: rgba(2,6,23,0.56);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow2);
+      overflow: hidden;
+    }
+    .card-h{
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .card-h .title{
+      font-weight: 850;
+      letter-spacing: .2px;
+      font-size: 14px;
+      margin: 0;
+    }
+    .card-h .desc{
+      margin: 3px 0 0;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+    .card-b{ padding: 14px; }
+
+    .tabs{
+      display:flex; gap: 8px; flex-wrap: wrap;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+    }
+    .tab{
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .tab:active{ transform: translateY(1px) scale(.99); }
+    .tab.active{
+      color: var(--text);
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.18);
+    }
+
+    /* Mobile bottom nav for tabs */
+    @media (max-width: 520px){
+      .tabs{
+        position: fixed;
+        left: 12px; right: 12px; bottom: 12px;
+        z-index: 80;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+        backdrop-filter: blur(10px);
+      }
+      .app{ padding-bottom: 96px; }
+    }
+
+    .row{ display:flex; gap: 10px; flex-wrap: wrap; }
+    .field{ display:flex; flex-direction: column; gap: 6px; min-width: 0; }
+    label{ font-size: 12px; color: var(--muted2); font-weight: 700; }
+    input, textarea, select{
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 10px 12px;
+      outline: none;
+    }
+    textarea{ min-height: 90px; resize: vertical; }
+    .hint{ font-size: 12px; color: var(--muted2); }
+
+    /* Buttons */
+    .btn{
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 16px;
+      padding: 12px 12px;
+      color: rgba(255,255,255,0.94);
+      background: rgba(255,255,255,0.04);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.30);
+      cursor: pointer;
+      transition: transform .08s ease, filter .12s ease;
+      user-select: none;
+    }
+    .btn:active{ transform: translateY(1px) scale(0.99); }
+    .btn:hover{ filter: brightness(1.05); }
+    .btn[disabled]{ opacity: .45; pointer-events: none; filter: grayscale(.35); }
+.locked{ opacity:.55; filter:saturate(.85); cursor:not-allowed !important; transform:none !important; }
+.hint-pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:14px; background: rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.22); color: rgba(226,232,240,0.9); font-size:12px; line-height:1.2; }
+.hint-pill.hidden{ display:none; }
+
+.lock-wrap{ position: relative; overflow: hidden; border-radius: 20px; }
+.frost-lock{ position:absolute; inset:0; border-radius:inherit; z-index: 25; box-sizing:border-box;
+  background: rgba(15,23,42,0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148,163,184,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+  display:flex; align-items:center; justify-content:center;
+}
+.frost-lock.hidden{ display:none; }
+.frost-lock .lock-card{ display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding: 14px 16px; border-radius: 16px;
+  background: rgba(2,6,23,0.55);
+  border: 1px solid rgba(148,163,184,0.18);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+}
+.frost-lock .lock-ico{ font-size: 28px; margin-bottom: 6px; }
+.frost-lock .lock-title{ font-weight: 900; letter-spacing: .2px; }
+.frost-lock .lock-sub{ font-size: 12px; color: rgba(226,232,240,0.85); margin-top: 4px; }
+.frost-lock .lock-sub strong{ color: rgba(255,255,255,0.92); }
+.frost-lock{ pointer-events:none; } /* keep layout solid; locked buttons are already disabled */
+.next-wrap{ display:inline-block; width:100%; max-width: 360px; }
+.next-wrap .btn-next{ max-width:100% !important; width:100% !important; margin:0 auto; display:block; }
+
+
+
+
+    .btn .btn-content{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.40);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+      justify-content: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.65);
+      font-weight: 850;
+      letter-spacing: .15px;
+    }
+    .btn .ico{ filter: drop-shadow(0 1px 3px rgba(0,0,0,0.65)); }
+
+    .btn-primary{ min-height: 86px; padding: 16px; border-radius: 20px; box-shadow: 0 18px 40px rgba(0,0,0,0.42); }
+    .btn-primary .btn-content{ padding: 14px 16px; font-size: 18px; }
+
+    .btn-call{ background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(16,185,129,0.92)); border-color: rgba(34,197,94,0.25); }
+    .btn-appt{ background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(37,99,235,0.92)); border-color: rgba(59,130,246,0.25); }
+
+    .btn-cb{ background: linear-gradient(135deg, rgba(20,184,166,0.85), rgba(13,148,136,0.88)); border-color: rgba(45,212,191,0.22); }
+    .btn-noanswer{ background: linear-gradient(135deg, rgba(100,116,139,0.82), rgba(71,85,105,0.86)); }
+    .btn-wrong{ background: linear-gradient(135deg, rgba(30,41,59,0.86), rgba(15,23,42,0.92)); }
+    .btn-dnc{ background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(127,29,29,0.92)); border-color: rgba(239,68,68,0.22); }
+    .btn-ni{ background: linear-gradient(135deg, rgba(251,146,60,0.90), rgba(194,65,12,0.92)); border-color: rgba(251,146,60,0.22); }
+    .btn-ghost{ background: rgba(255,255,255,0.05); }
+    .btn-solid{ background: linear-gradient(135deg, rgba(139,92,246,0.95), rgba(99,102,241,0.92)); border-color: rgba(139,92,246,0.26); }
+
+    .btn-next{ background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(6,182,212,0.92)); border-color: rgba(34,211,238,0.26); }
+    .btn-noeng{ background: linear-gradient(135deg, rgba(168,85,247,0.95), rgba(124,58,237,0.92)); border-color: rgba(168,85,247,0.26); }
+    .btn-mini{ padding: 10px 10px; border-radius: 14px; min-height: auto; }
+    .btn-mini .btn-content{ padding: 8px 10px; border-radius: 12px; font-size: 12px; }
+
+
+    .btn-top-danger{ padding: 9px 10px; border-radius: 14px; min-height: auto; }
+    .btn-top-danger .btn-content{ padding: 8px 10px; border-radius: 12px; font-size: 12px; }
+
+
+    .actions{
+      display:grid;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .primary-actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .secondary-actions{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .secondary-actions .btn{
+      flex: 1 1 150px;
+      min-width: 150px;
+      max-width: 220px;
+      min-height: 76px;
+    }
+    .secondary-actions .btn .btn-content{
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 12px;
+    }
+    .secondary-actions .btn .label{
+      font-size: 13px;
+      line-height: 1.1;
+      text-align: center;
+      white-space: normal;
+    }
+    @media (max-width: 520px){
+      .primary-actions{ grid-template-columns: 1fr; }
+      .secondary-actions .btn{ flex: 1 1 calc(50% - 10px); min-width: 0; max-width: none; }
+    }
+
+    .lead-block{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 720px){ .lead-block{ grid-template-columns: 1fr; } }
+
+    .kv{
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      border-radius: 14px;
+      padding: 10px 12px;
+      min-width: 0;
+    }
+    .kv .k{ font-size: 11px; color: var(--muted2); font-weight: 800; letter-spacing:.2px; }
+    .kv .v{ margin-top: 4px; font-size: 13px; color: var(--text); word-break: break-word; }
+
+    .badge{
+      display:inline-flex; align-items:center; gap: 6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      font-size: 12px;
+      font-weight: 850;
+      color: rgba(255,255,255,0.88);
+      white-space: nowrap;
+    }
+    .badge.red{ border-color: rgba(239,68,68,0.28); background: rgba(239,68,68,0.10); }
+    .badge.orange{ border-color: rgba(251,146,60,0.28); background: rgba(251,146,60,0.10); }
+    .badge.blue{ border-color: rgba(59,130,246,0.26); background: rgba(59,130,246,0.10); }
+    .badge.green{ border-color: rgba(34,197,94,0.26); background: rgba(34,197,94,0.10); }
+
+    .table{
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .table th, .table td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px;
+      color: rgba(255,255,255,0.84);
+      text-align: left;
+      vertical-align: top;
+    }
+    .table th{
+      font-size: 11px;
+      color: rgba(255,255,255,0.62);
+      font-weight: 850;
+      letter-spacing: .2px;
+      background: rgba(255,255,255,0.03);
+    }
+    .table tr:hover td{ background: rgba(255,255,255,0.03); }
+    .table .muted{ color: rgba(255,255,255,0.58); }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .danger-zone{
+      display:flex; align-items:center; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(239,68,68,0.22);
+      background: rgba(239,68,68,0.08);
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 12px; right: 12px; bottom: 84px;
+      z-index: 90;
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(2,6,23,0.78);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 52px rgba(0,0,0,0.60);
+    }
+    .toast.hidden{ display:none; }
+    .toast-text{ font-weight: 800; color: rgba(255,255,255,0.92); font-size: 13px; }
+    .toast-actions{ display:flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .toast-btn{
+      border-radius: 12px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.92);
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .toast-btn:active{ transform: translateY(1px); }
+    .toast-btn.confirm{ background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.35); }
+    .toast-btn.cancel{ background: rgba(255,255,255,0.06); }
+
+    /* Modal */
+    .modal{
+      position: fixed;
+      inset: 0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+    }
+    .modal.hidden{ display:none; }
+    .modal-card{
+
+      width: min(640px, 100%);
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(2,6,23,0.92);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.65);
+      padding: 16px;
+    }
+    .modal-title{ font-size: 16px; font-weight: 900; margin-bottom: 6px; }
+    .modal-sub{ color: rgba(255,255,255,0.74); font-size: 12px; margin-bottom: 14px; }
+    .modal-actions{ display:flex; justify-content:flex-end; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .two-col{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px){ .two-col{ grid-template-columns: 1fr; } }
+
+
+    /* Big scary safeguard modal */
+    .danger-modal{
+      max-width: 560px;
+      border: 2px solid rgba(239,68,68,0.50);
+      box-shadow: 0 0 0 8px rgba(239,68,68,0.18), 0 28px 86px rgba(0,0,0,0.70);
+      animation: dangerPulse 0.9s ease-in-out infinite alternate;
+    }
+    .danger-title{
+      font-size: 26px;
+      font-weight: 950;
+      color: rgba(254,202,202,0.98);
+      letter-spacing: .4px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .danger-sub{
+      font-size: 14px;
+      color: rgba(254,226,226,0.92);
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+    .danger-actions{
+      display:flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+      margin-top: 16px;
+    }
+    @keyframes dangerPulse{
+      from{ box-shadow: 0 0 0 6px rgba(239,68,68,0.16), 0 28px 86px rgba(0,0,0,0.70); }
+      to{ box-shadow: 0 0 0 12px rgba(239,68,68,0.28), 0 28px 86px rgba(0,0,0,0.70); }
+    }
+
+    .hr{ height:1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+    .hidden{ display:none !important; }
+  
+    .lead-titlebar{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+      margin: 6px 0 12px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+    }
+    .lead-title{
+      font-size: 34px;
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    @media (max-width: 520px){
+      .lead-title{ font-size: 28px; }
+    }
+    
+
+  /* Disposition picker (reliable dropdown) */
+  .disp-picker{ position:relative; }
+  .disp-btn{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(148,163,184,0.22);
+    background: rgba(2,6,23,0.35);
+    color: rgba(255,255,255,0.92);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .disp-btn[disabled]{ opacity:.45; cursor:not-allowed; }
+  .disp-menu{
+    position:absolute; left:0; right:0; top:calc(100% + 8px);
+    z-index:9999;
+    border-radius:14px;
+    border:1px solid rgba(148,163,184,0.22);
+    background: rgba(2,6,23,0.88);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+    max-height: 260px;
+    overflow:auto;
+    padding:6px;
+  }
+  .disp-opt{
+    padding:10px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    color: rgba(255,255,255,0.9);
+  }
+  .disp-opt:hover{ background: rgba(56,189,248,0.12); }
+  .hidden{ display:none !important; }
+
+
+    /* Metrics + goal */
+    .metrics{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end;
+    }
+    .goal{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 8px 10px;
+      min-width: 220px;
+    }
+    .goal-top{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      font-size: 12px; color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 6px;
+      white-space: nowrap;
+    }
+    .goal-top b{ color: var(--text); }
+    .goal-top input{
+      width: 58px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      font-weight: 850;
+      text-align: right;
+    }
+    .bar{
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.35);
+      overflow:hidden;
+    }
+    .bar > div{
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(34,197,94,0.95), rgba(59,130,246,0.95));
+      transition: width .25s ease;
+    }
+    .pill.small{
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">
+        <button class="logo v13-menu-btn" id="menuBtn" type="button" aria-label="Open menu" onclick="v13OpenMenu()">☰</button>
+        <div class="brand-col">
+          <h1>Lead Hopper <span style="font-size:.55em;color:var(--muted);">V13</span></h1>
+          <div class="sub">Fast calling workflow • persistent progress</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="pill" id="progressPill">Lead <b>0</b> of <b>0</b></span>
+
+        <span class="pill small" id="callTimerPill">⏱️ <b id="callTimerText">00:00</b></span>
+        <span class="pill small" id="todayStatsPill">Today <b id="todayCalls">0</b> calls • <b id="todayAppts">0</b> appts • <b id="todayCbs">0</b> cbs • <b id="todayConv">0%</b></span>
+        <div class="goal" title="Calls-per-hour tracker (last 60 minutes)">
+          <div class="goal-top">
+            <span>Calls/hr</span>
+            <span><b id="cphText">0</b> / <input id="cphGoalInput" type="number" min="1" step="1" value="20" aria-label="Calls per hour goal" /></span>
+          </div>
+          <div class="bar"><div id="cphBar"></div></div>
+        </div>
+
+        <button class="btn btn-ghost" onclick="openImport()">Import Leads</button>
+        <button class="btn btn-ghost" onclick="exportData()">Export</button>
+        <button class="btn btn-solid" onclick="endSession()">End Session (CSV)</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="tabs v13-old-tabs">
+        <div class="tab active" data-tab="hopper" onclick="setTab('hopper')">Hopper</div>
+        <div class="tab" data-tab="leads" onclick="setTab('leads')">All Leads</div>
+        <div class="tab" data-tab="schedule" onclick="setTab('schedule')">Callbacks & Quotes</div>
+        <div class="tab" data-tab="extras" onclick="setTab('extras')">Extras</div>
+        
+      </div>
+
+      <div class="card-b" id="tab-hopper">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div class="row" style="align-items:center;">
+            <span class="badge blue" id="statusBadge">READY</span>
+            <span class="badge" id="eligibilityBadge">Eligible now</span>
+          </div>
+          <div class="mini" id="leadMeta">—</div>
+        </div>
+
+        
+        <div class="row" style="justify-content:space-between; align-items:center; gap:12px; margin-top:10px;">
+          <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-mini" id="btnPrevLead" onclick="prevLead()" disabled>
+              <span class="btn-content"><span class="ico">⬅️</span><span class="label">Previous</span></span>
+            </button>
+            <span class="badge green hidden" id="dispSavedBadge">✔ Saved</span>
+            <span class="hint-pill hidden" id="dispUnlockHint" style="display:none"><span>🔒</span><span><strong>Call required:</strong> tap <strong>Call Now</strong> to unlock dispositions (30 min window).</span></span>
+            <span class="hint-pill hidden" id="nextUnlockHint" style="display:none"><span>🔒</span><span><strong>Next Lead</strong> unlocks after you pick a disposition.</span></span>
+            <span class="mini" id="dispSavedText"></span>
+          </div>
+          <div class="lock-wrap next-wrap">
+<button class="btn btn-primary btn-next lock-target" id="btnNextLead" onclick="nextLead()" disabled style="min-height:84px; padding:16px; border-radius:20px; max-width:360px; width:100%;">
+            <span class="btn-content" style="padding:14px 16px; font-size:18px;"><span class="ico">➡️</span><span class="label">Next Lead</span></span>
+          </button>
+  <div class="frost-lock hidden" id="nextFrost">
+    <div class="lock-card">
+      <div class="lock-ico">🔒</div>
+      <div class="lock-title">Next Lead</div>
+      <div class="lock-sub">Pick a disposition to unlock.</div>
+    </div>
+  </div>
+</div>
+        </div>
+
+
+        <div class="lead-block" id="leadBlock" style="margin-top:12px;"></div>
+
+        <div class="actions">
+          <div class="primary-actions">
+            <button class="btn btn-primary btn-call" id="btnCallNow" onclick="uiCallNow()">
+              <span class="btn-content"><span class="ico">📞</span><span class="label">Call Now</span></span>
+            </button>
+            <button class="btn btn-primary btn-appt" id="btnAppt" onclick="uiAppointment()">
+              <span class="btn-content"><span class="ico">📅</span><span class="label">Quote Appointment</span></span>
+            </button>
+          </div>
+
+          <div class="secondary-actions lock-wrap" id="dispWrap">
+  <div class="frost-lock hidden" id="dispFrost">
+    <div class="lock-card">
+      <div class="lock-ico">🧊🔒</div>
+      <div class="lock-title">Locked</div>
+      <div class="lock-sub">Tap <strong>Call Now</strong> to unlock dispositions<br/>30‑minute window.</div>
+    </div>
+  </div>
+            <button class="btn btn-cb" id="btnCallback" onclick="uiCallback()">
+              <span class="btn-content"><span class="ico">🔁</span><span class="label">Callback</span></span>
+            </button>
+            <button class="btn btn-noanswer" id="btnNoAnswer" onclick="uiDisposition('No Answer')">
+              <span class="btn-content"><span class="ico">📵</span><span class="label">No Answer</span></span>
+            </button>
+            
+            <button class="btn btn-noeng" id="btnNoEnglish" onclick="uiNoEnglish()">
+              <span class="btn-content"><span class="ico">🗣️</span><span class="label">No English</span></span>
+            </button>
+
+            <button class="btn btn-wrong" id="btnWrongNumber" onclick="uiDisposition('Wrong Number')">
+              <span class="btn-content"><span class="ico">☎️</span><span class="label">Wrong Number</span></span>
+            </button>
+            <button class="btn btn-dnc" id="btnDNC" onclick="uiDisposition('Do Not Call')">
+              <span class="btn-content"><span class="ico">🚫</span><span class="label">Do Not Call</span></span>
+            </button>
+            <button class="btn btn-solid v13-custom-plus" id="btnStateFarm" onclick="v13OpenCustomMenu()" aria-label="Custom dispositions">+</button>
+
+            <button class="btn btn-ni" id="btnNI" onclick="uiDisposition('Not Interested')">
+              <span class="btn-content"><span class="ico">❌</span><span class="label">Not Interested (45 days)</span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="card" style="border-radius:16px; margin-top: 10px;">
+          <div class="card-h">
+            <div>
+              <div class="title">Call log</div>
+              <div class="desc">Timestamps for speed + accountability (stored locally)</div>
+            </div>
+          </div>
+          <div class="card-b" id="callLog" style="padding-top:10px;"></div>
+        </div>
+      </div>
+
+      <div class="card-b hidden" id="tab-leads">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div class="field" style="flex:1; min-width: 220px;">
+            <label>Search</label>
+            <input id="searchBox" placeholder="Name, phone, email, address, disposition…" oninput="renderLeadsTable()" />
+          </div>
+          <div class="field" style="min-width: 220px;">
+            <label>Filter</label>
+            <select id="filterBox" onchange="renderLeadsTable()">
+              <option value="all">All</option>
+              <option value="eligible">Eligible now</option>
+              <option value="snoozed">Snoozed (Not Interested)</option>
+              <option value="statefarm">Snoozed (Has State Farm)</option>
+              <option value="removed">Removed (DNC/Wrong #)</option>
+              <option value="callback">Callback scheduled</option>
+              <option value="appointment">Quote</option>
+              <option value="noanswer">No Answer</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="overflow:auto; margin-top: 12px;">
+          <table class="table" id="leadsTable"></table>
+        </div>
+      </div>
+
+      <div class="card-b hidden" id="tab-schedule">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="title" style="font-weight:900;">Schedule</div>
+            <div class="desc" style="color:var(--muted2); font-size: 12px;">Callbacks + quotes in one place (2-hour spacing enforced for appointments).</div>
+          </div>
+          <button class="btn btn-ghost" onclick="openScheduleAdd()">Add item</button>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="field" style="min-width: 220px;">
+            <label>View</label>
+            <select id="scheduleView" onchange="renderSchedule()">
+              <option value="upcoming">Upcoming</option>
+              <option value="today">Today</option>
+              <option value="week">Next 7 days</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div class="field" style="min-width: 220px;">
+            <label>Sort</label>
+            <select id="scheduleSort" onchange="renderSchedule()">
+              <option value="time">Time</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px;" id="scheduleList"></div>
+      </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  
+      <div class="card-b hidden" id="tab-extras">
+        <div class="split">
+          <div class="card" style="border-radius:16px;">
+            <div class="card-h">
+              <div>
+                <div class="title">Activity Log</div>
+                <div class="desc">Updates as you work: calls, dispositions, callbacks, quotes. Use “View lead” to edit a disposition.</div>
+              </div>
+            </div>
+            <div class="card-b">
+              <div class="row" style="align-items:flex-end; justify-content:space-between;">
+                <div class="field" style="min-width: 220px;">
+                  <label>Day</label>
+                  <input type="date" id="activityDate" onchange="renderActivityLog()" />
+                  <div class="hint">Defaults to today.</div>
+                </div>
+                <button class="btn btn-ghost" onclick="exportActivityCSV()">Export Activity CSV</button>
+              </div>
+              <div style="overflow:auto; margin-top: 12px;">
+                <table class="table" id="activityTable"></table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="border-radius:16px;">
+            <div class="card-h">
+              <div>
+                <div class="title">Daily Report</div>
+                <div class="desc">Download one readable daily work report for the selected day.</div>
+              </div>
+            </div>
+            <div class="card-b">
+              <div class="row" style="align-items:flex-end;">
+                <div class="field" style="min-width: 220px;">
+                  <label>Report date</label>
+                  <input type="date" id="reportDate" />
+                  <div class="hint">Defaults to today.</div>
+                </div>
+                <button class="btn btn-solid" onclick="generateDailyReport()">
+                  <span class="btn-content"><span class="ico">🧾</span><span class="label">Generate Daily Report</span></span>
+                </button>
+              </div>
+              <div class="hr"></div>
+              <div class="kv">
+                <div class="k">What you’ll get</div>
+                <div class="v">
+                  • Calls, unique leads, callbacks, appointments, and conversion <br/>
+                  • Only leads actually worked that day <br/>
+                  • A chronological activity timeline and that day’s schedule
+                </div>
+              </div>
+            </div>
+          </div>
+
+          
+          <div class="card" style="border-radius:16px;">
+            <div class="card-h">
+              <div>
+                <div class="title">No English list</div>
+                <div class="desc">Leads removed as “No English”.</div>
+              </div>
+              <div class="row" style="align-items:center;">
+                <button class="btn btn-ghost" onclick="exportNoEnglish()">Export CSV</button>
+              </div>
+            </div>
+            <div class="card-b" id="noEnglishList"></div>
+          </div>
+
+<div class="card" style="border-radius:16px;">
+            <div class="card-h">
+              <div>
+                <div class="title">Data</div>
+                <div class="desc">Import / export / wipe. Everything saves locally on this device.</div>
+              </div>
+            </div>
+            <div class="card-b">
+              <div class="row">
+                <button class="btn btn-ghost" onclick="exportData()">Export JSON</button>
+                <button class="btn btn-ghost" onclick="openImport()">Import / Merge</button>
+              </div>
+              <div class="hr"></div>
+              <div class="danger-zone">
+                <div>
+                  <div style="font-weight:900;">Clear all leads + schedule</div>
+                  <div class="hint">Safeguarded — requires confirm.</div>
+                </div>
+                <button class="btn btn-dnc btn-top-danger" onclick="confirmDeleteAll()">
+                  <span class="btn-content"><span class="ico">🗑️</span><span class="label">Clear Everything</span></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+  <div class="toast hidden" id="toast">
+    
+      
+
+
+  <div class="toast-text" id="toastText">Saved.</div>
+    
+
+  <div class="toast-actions" id="toastActions"></div>
+  </div>
+
+  <!-- Import modal -->
+  <div class="modal hidden" id="importModal">
+    <div class="modal-card">
+      <div class="modal-title">Import leads</div>
+      <div class="modal-sub">Paste CSV (with headers) or a JSON array. Merge keeps existing work; Replace starts a new list.</div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Format</label>
+          <select id="importFormat">
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Import mode</label>
+          <select id="importMode">
+            <option value="merge">Merge with existing leads</option>
+            <option value="replace">Replace current lead list</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>CSV headers (recommended)</label>
+          <input value="firstName,lastName,phone,email,address,city,state,zip" disabled />
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>Upload file (CSV or JSON)</label>
+        <input type="file" id="importFile" accept=".csv,.json,text/csv,application/json" />
+        <div class="hint">Or paste below.</div>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>Paste data</label>
+        <textarea id="importText" placeholder="CSV example:
+firstName,lastName,phone,email,address,city,state,zip
+Jane,Doe,5551234567,jane@gmail.com,123 Main St,Los Angeles,CA,90001
+
+JSON example:
+[{&quot;firstName&quot;:&quot;Jane&quot;,&quot;lastName&quot;:&quot;Doe&quot;,&quot;phone&quot;:&quot;555...&quot;}]"></textarea>
+        <div class="hint" id="importHint"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeImport()">Cancel</button>
+        <button class="btn btn-solid" onclick="doImport()">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Callback modal -->
+  <div class="modal hidden" id="callbackModal">
+    <div class="modal-card">
+      <div class="modal-title">Schedule callback</div>
+      <div class="modal-sub">Pick a date/time and notes. This lead stays in your schedule list.</div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Date & time</label>
+          <input type="datetime-local" id="cbWhen" />
+        </div>
+        <div class="field">
+          <label>Phone (auto)</label>
+          <input id="cbPhone" disabled />
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Notes</label>
+        <textarea id="cbNotes" placeholder="What should you remember for the callback?"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeCallback()">Cancel</button>
+        <button class="btn btn-solid" onclick="saveCallback()">Save callback</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appointment modal -->
+  <div class="modal hidden" id="apptModal">
+    <div class="modal-card">
+      <div class="modal-title">Quote appointment</div>
+      <div class="modal-sub">Appointments must be at least <b>2 hours apart</b>. Add names, phones, emails, address, notes.</div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Date & time</label>
+          <input type="datetime-local" id="apptWhen" />
+        </div>
+        <div class="field">
+          <label>Main phone</label>
+          <input id="apptPhone" />
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>First name</label>
+          <input id="apptFirst" />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input id="apptLast" />
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>Spouse first name</label>
+          <input id="apptSpouseFirst" />
+        </div>
+        <div class="field">
+          <label>Spouse last name</label>
+          <input id="apptSpouseLast" />
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>Email</label>
+          <input id="apptEmail" />
+        </div>
+        <div class="field">
+          <label>Address</label>
+          <input id="apptAddress" />
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>Notes</label>
+        <textarea id="apptNotes"></textarea>
+        <div class="hint" id="apptRuleHint">We’ll warn you if the time conflicts with an existing appointment.</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeAppt()">Cancel</button>
+        <button class="btn btn-solid" onclick="saveAppointment()">Save appointment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change disposition modal -->
+  <div class="modal hidden" id="changeDispModal">
+    <div class="modal-card">
+      <div class="modal-title">Fix disposition</div>
+      <div class="modal-sub">Made a mistake? Choose the right action for the current lead.</div>
+
+      <div class="field">
+        <label>Disposition</label>
+        <select id="changeDispSelect">
+          <option value="No Answer">No Answer (send to end)</option>
+          <option value="Callback">Callback (schedule)</option>
+          <option value="Wrong Number">Wrong Number (remove)</option>
+          <option value="Do Not Call">Do Not Call (remove)</option>
+          <option value="Not Interested">Not Interested (45 days)</option>
+          <option value="Has State Farm">Has State Farm (120 days)</option>
+          <option value="Quote">Quote</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeChangeDisp()">Cancel</button>
+        <button class="btn btn-solid" onclick="applyChangeDisp()">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add schedule item modal -->
+  <div class="modal hidden" id="scheduleAddModal">
+    <div class="modal-card">
+      <div class="modal-title">Add schedule item</div>
+      <div class="modal-sub">Create a callback or appointment without going through the hopper.</div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Type</label>
+          <select id="schedType">
+            <option value="callback">Callback</option>
+            <option value="appointment">Appointment</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date & time</label>
+          <input type="datetime-local" id="schedWhen" />
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>Name</label>
+          <input id="schedName" placeholder="Jane Doe" />
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input id="schedPhone" placeholder="5551234567" />
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>Notes</label>
+        <textarea id="schedNotes"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeScheduleAdd()">Cancel</button>
+        <button class="btn btn-solid" onclick="saveScheduleAdd()">Save</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- No English modal -->
+  <div class="modal hidden" id="noEnglishModal">
+    <div class="modal-card">
+      <div class="modal-title">No English</div>
+      <div class="modal-sub">Choose “Spanish” or “Other”. This removes the lead from the hopper and stores it in Extras.</div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Language</label>
+          <select id="neLang">
+            <option value="Spanish">Spanish</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <input id="neNotes" placeholder="e.g., asked for Spanish speaker" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeNoEnglish()">Cancel</button>
+        <button class="btn btn-solid" onclick="saveNoEnglish()">Save</button>
+      </div>
+    </div>
+  
+  </div>
+</div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeEditLead()">Close</button>
+        <button class="btn btn-solid" onclick="saveEditLead()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+
+const STORE_KEY = "lead_hopper_dialer_rewrite_v1";
+let state = { leads: [], schedule: [], callLog: [], activityLog: [], currentIndex: 0, cursorLeadId: null, holdLeadId: null };
+let actionLock = false;
+let lastSnapshot = null;
+let pendingConfirm = null;
+let toastTimer = null;
+
+function nowISO(){ return new Date().toISOString(); }
+
+function lastCallAt(lead){
+  const calls = (lead && lead.calls) ? lead.calls : [];
+  if(!calls.length) return null;
+  let best = null;
+  for(const c of calls){
+    const t = new Date(c.t);
+    if(!isNaN(t.getTime())){
+      if(!best || t.getTime() > best.getTime()) best = t;
+    }
+  }
+  return best;
+}
+function hasRecentCall(lead, minutes=30){
+  const t = lastCallAt(lead);
+  if(!t) return false;
+  const diff = Date.now() - t.getTime();
+  return diff >= 0 && diff <= minutes*60*1000;
+}
+function requireRecentCall(lead){
+  if(hasRecentCall(lead,30)) return true;
+  showToast('🔒 Tap Call Now first (then you have 30 minutes to disposition).', [], 3200);
+  vibrate(18);
+  return false;
+}
+
+function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
+function safeText(x){ return (x ?? "").toString().trim(); }
+function cleanPhone(p){
+  if(!p) return "";
+  const d = String(p).replace(/[^\d]/g,'');
+  return d.length === 11 && d.startsWith('1') ? d.slice(1) : d;
+}
+function fmtPhone(p){
+  const d = cleanPhone(p);
+  if(d.length !== 10) return safeText(p);
+  return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+}
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, s => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[s]));
+}
+function vibrate(ms=16){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+function addActivity(entry){
+  // entry: {t, leadId, type, detail}
+  try{
+    state.activityLog = state.activityLog || [];
+    state.activityLog.unshift({
+      id: uid(),
+      t: entry.t || nowISO(),
+      leadId: entry.leadId || null,
+      type: entry.type || 'event',
+      detail: entry.detail || ''
+    });
+  }catch(e){}
+}
+
+function saveAll(){
+  state.lastActiveAt = nowISO();
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+function loadAll(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      state = Object.assign(state, JSON.parse(raw));
+    }
+    // backfill
+    if(!state.advance) state.advance = { ready:false, leadId:null, disp:null, t:null };
+    if(!Array.isArray(state.prevStack)) state.prevStack = [];
+    if(state.cursorLeadId === undefined) state.cursorLeadId = null;
+    if(!Array.isArray(state.noEnglish)) state.noEnglish = [];
+    if(!Array.isArray(state.activityLog)) state.activityLog = [];
+    if(!('holdLeadId' in state)) state.holdLeadId = null;
+    if(!('overrideLeadId' in state)) state.overrideLeadId = null;
+    if(!state.settings) state.settings = { cphGoal: 20 };
+    if(!(Number(state.settings.cphGoal)>0)) state.settings.cphGoal = 20;
+    if(!('callSession' in state)) state.callSession = null;
+    if(!('activeTab' in state)) state.activeTab = 'hopper';
+  }catch(e){}
+}
+
+function setTab(tab, persist=true){
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  ["hopper","leads","schedule","extras"].forEach(k=>{
+    document.getElementById("tab-"+k).classList.toggle("hidden", k !== tab);
+  });
+  if(tab==="leads") renderLeadsTable();
+  if(tab==="schedule") renderSchedule();
+  if(tab==="extras"){
+    try{ renderNoEnglishList(); }catch(e){};
+    try{ initActivityDate(); renderActivityLog(); }catch(e){};
+  }
+  state.activeTab = tab;
+  if(persist) saveAll();
+}
+
+function snapshot(note){
+  try{ lastSnapshot = { state: JSON.stringify(state), note: note || "" }; }catch(e){ lastSnapshot = null; }
+}
+function restoreSnapshot(){
+  if(!lastSnapshot) return false;
+  try{
+    state = JSON.parse(lastSnapshot.state);
+    lastSnapshot = null;
+    saveAll();
+    renderAll();
+    return true;
+  }catch(e){ return false; }
+}
+
+function setButtonsDisabled(disabled){
+  ["btnCallNow","btnAppt","btnCallback","btnNoAnswer","btnNoEnglish","btnWrongNumber","btnDNC","btnNI","btnStateFarm","btnNextLead","btnPrevLead"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = !!disabled;
+  });
+}
+
+function showToast(text, buttons=[], timeoutMs=9000){
+  const toast = document.getElementById("toast");
+  const tt = document.getElementById("toastText");
+  const ta = document.getElementById("toastActions");
+  tt.textContent = text;
+  ta.innerHTML = "";
+  buttons.forEach(b=>{
+    const btn = document.createElement("button");
+    btn.className = "toast-btn " + (b.className||"");
+    btn.textContent = b.text;
+    btn.onclick = b.onClick;
+    ta.appendChild(btn);
+  });
+  toast.classList.remove("hidden");
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.add("hidden"), timeoutMs);
+}
+function hideToast(){
+  document.getElementById("toast").classList.add("hidden");
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = null;
+}
+
+function showDangerConfirm(opts){
+  // opts: { title, textHtml, confirmLabel, onConfirm }
+  const modal = document.getElementById("dangerModal");
+  const titleEl = document.getElementById("dangerTitle");
+  const textEl  = document.getElementById("dangerText");
+  const btn     = document.getElementById("dangerConfirmBtn");
+  const lbl     = document.getElementById("dangerConfirmLabel");
+
+  titleEl.textContent = opts.title || "⚠️ Confirm";
+  textEl.innerHTML = opts.textHtml || "This action cannot be undone.";
+  lbl.textContent = opts.confirmLabel || "Confirm";
+
+  // Replace handler each time
+  btn.onclick = () => {
+    closeDanger();
+    try{ opts.onConfirm && opts.onConfirm(); }catch(e){}
+  };
+
+  vibrate(30);
+  modal.classList.remove("hidden");
+}
+function closeDanger(){
+  const modal = document.getElementById("dangerModal");
+  modal.classList.add("hidden");
+}
+
+
+function leadDisposition(l){ return l.disposition || "New"; }
+function markAdvanceReady(lead, disp){
+  if(!lead) return;
+  state.advance = { ready:true, leadId: lead.id, disp: disp, t: nowISO() };
+}
+function resetAdvance(){
+  state.advance = { ready:false, leadId:null, disp:null, t:null };
+}
+function canAdvance(lead){
+  return !!(lead && state.advance && state.advance.ready && state.advance.leadId === lead.id);
+}
+
+function isRemoved(l){ const d=leadDisposition(l); return d==="Do Not Call" || d==="Wrong Number" || d==="No English"; }
+function isSnoozed(l){
+  const d0 = leadDisposition(l);
+  // All positive custom snoozeDays use nextEligibleAt.
+  if(l.nextEligibleAt){
+    return new Date(l.nextEligibleAt).getTime() > Date.now();
+  }
+  if(d0==="Callback"){
+    return state.schedule.some(s => s.leadId===l.id && s.type==="callback" && !s.done && new Date(s.when).getTime() > Date.now());
+  }
+  return false;
+}
+function eligibleLeads(){ return state.leads.filter(l => !isRemoved(l) && !isSnoozed(l) && leadDisposition(l)!=="Appointment Set"); }
+function syncCursor(){
+  if(state.holdLeadId || state.overrideLeadId) return;
+  const list = eligibleLeads();
+  if(!list.length){ state.cursorLeadId = null; state.currentIndex = 0; return; }
+  // If we have a saved cursor id, prefer it
+  if(state.cursorLeadId){
+    const p = list.findIndex(l => l.id === state.cursorLeadId);
+    if(p >= 0) state.currentIndex = p;
+  }
+  if(state.currentIndex >= list.length) state.currentIndex = 0;
+  // Always keep cursorLeadId pointing at whatever currentIndex resolves to
+  state.cursorLeadId = (list[state.currentIndex] && list[state.currentIndex].id) ? list[state.currentIndex].id : null;
+}
+function getCurrentLead(){
+  // If a disposition just happened, keep showing that same lead until user hits Next Lead.
+  if(state.holdLeadId){
+    const held = state.leads.find(l => l.id === state.holdLeadId) || null;
+    if(held) return held;
+    state.holdLeadId = null;
+  }
+  // If user hit "Previous", show that exact last-shown lead even if removed/snoozed.
+  if(state.overrideLeadId){
+    const forced = state.leads.find(l => l.id === state.overrideLeadId) || null;
+    if(forced) return forced;
+    state.overrideLeadId = null;
+  }
+
+  // Normal hopper flow: ensure currentIndex + cursorLeadId are aligned to the latest eligible list.
+  syncCursor();
+  const list = eligibleLeads();
+  if(!list.length) return null;
+  if(state.currentIndex >= list.length) state.currentIndex = 0;
+  // keep cursorLeadId consistent with currentIndex
+  state.cursorLeadId = (list[state.currentIndex] && list[state.currentIndex].id) ? list[state.currentIndex].id : null;
+  return list[state.currentIndex] || null;
+}
+function moveCurrentToEnd(){
+  const lead = getCurrentLead();
+  if(!lead) return;
+  const idx = state.leads.findIndex(x=>x.id===lead.id);
+  if(idx>=0){
+    const [item] = state.leads.splice(idx,1);
+    state.leads.push(item);
+  }
+}
+function callsPerHour(){
+  const cutoff = Date.now() - 60*60*1000;
+  return state.callLog.filter(x => new Date(x.t).getTime() >= cutoff).length;
+}
+
+
+let _timerTick = null;
+
+function startCallTimer(leadId){
+  try{
+    state.callSession = { leadId: leadId || null, startAt: nowISO() };
+    saveAll();
+    renderTopMetrics();
+    if(_timerTick) clearInterval(_timerTick);
+    _timerTick = setInterval(renderTopMetrics, 1000);
+  }catch(e){}
+}
+function stopCallTimer(){
+  try{
+    state.callSession = null;
+    saveAll();
+    renderTopMetrics();
+    if(_timerTick) { clearInterval(_timerTick); _timerTick = null; }
+  }catch(e){}
+}
+function fmtMMSS(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  const mm = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${mm}:${ss}`;
+}
+function isSameLocalDay(a, b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+function computeTodayStats(){
+  const today = new Date();
+  const log = state.activityLog || [];
+  let calls=0, appts=0, cbs=0;
+  for(const e of log){
+    const t = new Date(e.t);
+    if(isNaN(t.getTime())) continue;
+    if(!isSameLocalDay(t, today)) continue;
+    if(e.type==="Call") calls++;
+    else if(e.type==="Appointment") appts++;
+    else if(e.type==="Callback") cbs++;
+  }
+  const conv = calls>0 ? Math.round((appts/calls)*100) : 0;
+  return { calls, appts, cbs, conv };
+}
+function renderTopMetrics(){
+  // Today's stats
+  try{
+    const s = computeTodayStats();
+    const cEl = document.getElementById("todayCalls");
+    const aEl = document.getElementById("todayAppts");
+    const bEl = document.getElementById("todayCbs");
+    const vEl = document.getElementById("todayConv");
+    if(cEl) cEl.textContent = s.calls;
+    if(aEl) aEl.textContent = s.appts;
+    if(bEl) bEl.textContent = s.cbs;
+    if(vEl) vEl.textContent = s.conv + "%";
+  }catch(e){}
+
+  // Calls/hr goal bar (last 60 minutes)
+  try{
+    const goalInput = document.getElementById("cphGoalInput");
+    if(goalInput){
+      // initialize from state once
+      if(String(goalInput.dataset.bound||"")!=="1"){
+        goalInput.value = (state.settings && state.settings.cphGoal) ? state.settings.cphGoal : 20;
+        goalInput.dataset.bound = "1";
+        goalInput.addEventListener("change", ()=>{
+          const val = Math.max(1, Math.floor(Number(goalInput.value)||20));
+          goalInput.value = val;
+          state.settings = state.settings || {};
+          state.settings.cphGoal = val;
+          saveAll();
+          renderTopMetrics();
+        });
+      }
+    }
+    const cph = callsPerHour();
+    const goal = (state.settings && Number(state.settings.cphGoal)>0) ? Number(state.settings.cphGoal) : 20;
+    const pct = Math.max(0, Math.min(100, (cph/goal)*100));
+    const cphText = document.getElementById("cphText");
+    const bar = document.getElementById("cphBar");
+    if(cphText) cphText.textContent = cph.toFixed(0);
+    if(bar) bar.style.width = pct.toFixed(1) + "%";
+  }catch(e){}
+
+  // Call timer
+  try{
+    const pill = document.getElementById("callTimerPill");
+    const text = document.getElementById("callTimerText");
+    if(!pill || !text) return;
+    if(state.callSession && state.callSession.startAt){
+      const start = new Date(state.callSession.startAt).getTime();
+      const ms = Date.now() - start;
+      text.textContent = fmtMMSS(ms);
+      pill.style.opacity = "1";
+    } else {
+      text.textContent = "00:00";
+      pill.style.opacity = "0.72";
+    }
+  }catch(e){}
+}
+
+function logCall(leadId){
+  const t = nowISO();
+  state.callLog.unshift({ t, leadId });
+  const lead = state.leads.find(l=>l.id===leadId);
+  if(lead){
+    lead.calls = lead.calls || [];
+    lead.calls.unshift({ t });
+  }
+  saveAll();
+}
+
+function renderProgress(){
+  const list = eligibleLeads();
+  const total = list.length;
+  const lead = getCurrentLead();
+  const idx = lead ? (list.findIndex(x=>x.id===lead.id)+1) : 0;
+  document.getElementById("progressPill").innerHTML = `Lead <b>${idx}</b> of <b>${total}</b>`;
+  const sp = document.getElementById("speedPill");
+  if(sp) sp.textContent = (callsPerHour()).toFixed(1);
+}
+
+function renderLead(){
+  const lead = getCurrentLead();
+  const block = document.getElementById("leadBlock");
+  const status = document.getElementById("statusBadge");
+  const elig = document.getElementById("eligibilityBadge");
+  const meta = document.getElementById("leadMeta");
+
+  if(!lead){
+    status.className = "badge red";
+    status.textContent = "NO ELIGIBLE LEADS";
+    elig.textContent = "Import leads to begin";
+    meta.textContent = "—";
+    block.innerHTML = `
+      <div class="kv"><div class="k">Next step</div><div class="v">Click <b>Import Leads</b> to load a list.</div></div>
+`;
+    if(state.sessionStartAt){
+      elig.textContent = 'Session complete';
+      showToast('No eligible leads left. Download your session list?', [
+        { text:'Download CSV', onClick: ()=>exportSessionFilteredCSV(), className:'' },
+        { text:'End Session', onClick: ()=>endSession(), className:'' }
+      ], 12000);
+    }
+    setButtonsDisabled(true);
+    renderProgress();
+    renderCallLog();
+    return;
+  }
+
+  const callNowBtn = document.getElementById('btnCallNow');
+  if(callNowBtn) callNowBtn.disabled = false;
+
+
+  // Next/Prev gating UI
+  const nextBtn = document.getElementById("btnNextLead");
+  const prevBtn = document.getElementById("btnPrevLead");
+  const savedBadge = document.getElementById("dispSavedBadge");
+  const savedText = document.getElementById("dispSavedText");
+  const ready = canAdvance(lead);
+  if(nextBtn) nextBtn.disabled = !ready;
+  const recent = hasRecentCall(lead, 30);
+  const dispFrost = document.getElementById('dispFrost');
+  if(dispFrost) dispFrost.classList.toggle('hidden', recent);
+  const nextFrost = document.getElementById('nextFrost');
+  if(nextFrost) nextFrost.classList.toggle('hidden', ready);
+  const dispBtnIds = ['btnAppt','btnCallback','btnNoAnswer','btnNoEnglish','btnWrongNumber','btnDNC','btnNI','btnStateFarm'];
+  for(const id of dispBtnIds){
+    const b = document.getElementById(id);
+    if(!b) continue;
+    b.disabled = !recent;
+    b.classList.toggle('locked', !recent);
+    b.title = !recent ? 'Tap Call Now to unlock dispositions' : '';
+  }
+
+  if(savedBadge) savedBadge.classList.toggle("hidden", !ready);
+  if(savedText){
+    if(lead && lead.lastEditedAt){
+      const t = new Date(lead.lastEditedAt);
+      const when = isNaN(t.getTime()) ? '' : t.toLocaleString();
+      savedText.textContent = `Edited: ${when}`;
+    } else if(state.overrideLeadId) savedText.textContent = "Viewing previous lead (you can fix it)";
+    else savedText.textContent = ready ? `Saved: ${state.advance.disp}` : "";
+  }
+  if(prevBtn) prevBtn.disabled = !((state.prevStack||[]).length);
+
+  setButtonsDisabled(false);
+
+  const disp = leadDisposition(lead);
+  status.className = "badge blue";
+  status.textContent = disp.toUpperCase();
+
+  if(disp==="Not Interested" && lead.nextEligibleAt){
+    const d = new Date(lead.nextEligibleAt);
+    elig.className = "badge orange";
+    elig.textContent = `Snoozed until ${d.toLocaleDateString()}`;
+  } else {
+    elig.className = "badge";
+    elig.textContent = "Eligible now";
+  }
+
+  const name = (`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim() || "—";
+  const phone = fmtPhone(lead.phone) || "—";
+  const email = safeText(lead.email) || "—";
+  const addr = [lead.address, lead.city, lead.state, lead.zip].map(safeText).filter(Boolean).join(", ") || "—";
+  const lastCall = (lead.calls && lead.calls[0]) ? new Date(lead.calls[0].t).toLocaleString() : "—";
+  meta.textContent = `Last call: ${lastCall}`;
+
+  block.innerHTML = `
+    <div class="lead-titlebar"><div><div class="lead-title">${escapeHtml(name)}</div></div></div>
+    <div class="kv"><div class="k">Phone</div><div class="v">${escapeHtml(phone)}</div></div>
+    <div class="kv"><div class="k">Email</div><div class="v">${escapeHtml(email)}</div></div>
+    <div class="kv"><div class="k">Address</div><div class="v">${escapeHtml(addr)}</div></div>
+  `;
+
+  renderProgress();
+  renderCallLog();
+}
+
+function renderCallLog(){
+  const el = document.getElementById("callLog");
+  const lead = getCurrentLead();
+  if(!lead){
+    el.innerHTML = `<div class="hint">No calls yet.</div>`;
+    return;
+  }
+  const calls = (lead.calls || []).slice(0,12);
+  if(!calls.length){
+    el.innerHTML = `<div class="hint">No calls logged for this lead yet. Tap <b>Call Now</b> to log a call time.</div>`;
+    return;
+  }
+  el.innerHTML = calls.map(c => `<div class="kv" style="margin-bottom:10px;"><div class="k">Call</div><div class="v">${escapeHtml(new Date(c.t).toLocaleString())}</div></div>`).join("");
+}
+
+function renderLeadsTable(){
+  const table = document.getElementById("leadsTable");
+  const q = safeText(document.getElementById("searchBox").value).toLowerCase();
+  const filter = document.getElementById("filterBox").value;
+
+  const rows = state.leads.filter(l => {
+    const disp = leadDisposition(l);
+    const removed = isRemoved(l);
+    const snoozed = isSnoozed(l);
+    const hasCb = state.schedule.some(s => s.type==="callback" && s.leadId===l.id && !s.done);
+    const hasAppt = state.schedule.some(s => s.type==="appointment" && s.leadId===l.id && !s.done);
+    const noAnswer = disp==="No Answer";
+
+    if(filter==="eligible" && (removed || snoozed)) return false;
+    if(filter==="removed" && !removed) return false;
+    if(filter==="snoozed" && !snoozed) return false;
+    if(filter==="statefarm" && disp!=="Has State Farm") return false;
+    if(filter==="callback" && !hasCb) return false;
+    if(filter==="appointment" && !hasAppt) return false;
+    if(filter==="noanswer" && !noAnswer) return false;
+
+    if(q){
+      const hay = [l.firstName,l.lastName,l.phone,l.email,l.address,l.city,l.state,l.zip,disp].map(safeText).join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Name</th><th>Phone</th><th>Disposition</th><th>Next eligible</th><th>Last call</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(l=>{
+        const name = (`${safeText(l.firstName)} ${safeText(l.lastName)}`).trim() || "—";
+        const disp = leadDisposition(l);
+        const nextElig = ((disp==="Not Interested" || disp==="Has State Farm") && l.nextEligibleAt) ? new Date(l.nextEligibleAt).toLocaleDateString() : "—";
+        const lastCall = (l.calls && l.calls[0]) ? new Date(l.calls[0].t).toLocaleString() : "—";
+        return `
+          <tr>
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(fmtPhone(l.phone) || "—")}</td>
+            <td>${escapeHtml(disp)}</td>
+            <td class="muted">${escapeHtml(nextElig)}</td>
+            <td class="muted">${escapeHtml(lastCall)}</td>
+            <td><button class="toast-btn" class="js-open-person" data-person="${escapeHtml(l.id)}">Open</button></td>
+          </tr>
+        `;
+      }).join("")}
+    </tbody>
+  `;
+}
+
+function renderSchedule(){
+  const listEl = document.getElementById("scheduleList");
+  const view = document.getElementById("scheduleView").value;
+  const sort = document.getElementById("scheduleSort").value;
+
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const endWeek = startToday + 7*24*60*60*1000;
+
+  let items = state.schedule.slice().filter(s => !s.done);
+
+  if(view==="today"){
+    items = items.filter(s => {
+      const t = new Date(s.when).getTime();
+      return t >= startToday && t < startToday + 86400000;
+    });
+  } else if(view==="week"){
+    items = items.filter(s => {
+      const t = new Date(s.when).getTime();
+      return t >= startToday && t < endWeek;
+    });
+  } else if(view==="upcoming"){
+    items = items.filter(s => new Date(s.when).getTime() >= Date.now()-300000);
+  }
+
+  if(sort==="type"){
+    items.sort((a,b) => a.type.localeCompare(b.type) || (new Date(a.when)-new Date(b.when)));
+  } else {
+    items.sort((a,b) => new Date(a.when)-new Date(b.when));
+  }
+
+  if(!items.length){
+    listEl.innerHTML = `<div class="kv"><div class="k">Nothing scheduled</div><div class="v">Callbacks and appointments you set will appear here.</div></div>`;
+    return;
+  }
+
+  listEl.innerHTML = items.map(s => {
+    const lead = s.leadId ? state.leads.find(l=>l.id===s.leadId) : null;
+    const who = s.name || (lead ? (`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim() : "—");
+    const phone = s.phone || (lead ? fmtPhone(lead.phone) : "");
+    const when = new Date(s.when).toLocaleString();
+    const badge = s.type==="appointment" ? "green" : "blue";
+    const title = s.type==="appointment" ? "Appointment" : "Callback";
+    return `
+      <div class="card" style="border-radius:16px; margin-bottom: 12px;">
+        <div class="card-h">
+          <div>
+            <div class="title"><span class="badge ${badge}">${title}</span> ${escapeHtml(who)}</div>
+            <div class="desc">${escapeHtml(when)} • ${escapeHtml(phone || "")}</div>
+          </div>
+          <div class="row" style="align-items:center;">
+            ${s.leadId ? `<button class="btn btn-ghost" onclick="jumpToLead('${s.leadId}', 'schedule')">Open lead</button>` : ""}
+            <button class="btn btn-ghost" onclick="markScheduleDone('${s.id}')">Done</button>
+          </div>
+        </div>
+        <div class="card-b"><div class="hint">${escapeHtml(s.notes || "—")}</div></div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAll(){
+  renderLead();
+  renderProgress();
+  renderTopMetrics();
+}
+
+function uiCallNow(){
+  if(actionLock) return;
+  const lead = getCurrentLead();
+  if(!lead || !/^\+?\d{10,15}$/.test(cleanPhone(lead.phone))) return;
+  vibrate(18);
+
+  actionLock = true;
+  setButtonsDisabled(true);
+  startCallTimer(lead.id);
+  // Session starts on first call
+  if(!state.sessionStartAt){ state.sessionStartAt = nowISO(); }
+  logCall(lead.id);
+  addActivity({ leadId: lead.id, type: 'Call', detail: 'Call Now' });
+
+  const phone = cleanPhone(lead.phone);
+  if(phone){
+    v19AfterCommit(function(){try{window.location.href = `tel:${phone}`;}catch(e){showToast("Could not open dialer.",[],3000);}});
+  }
+
+  setTimeout(()=>{
+    actionLock = false;
+    setButtonsDisabled(false);
+    renderLead();
+    showToast("Call logged.", [], 1600);
+  }, 320);
+}
+
+function uiAppointment(){
+  if(actionLock) return;
+  const lead = getCurrentLead();
+  if(!lead) return;
+    if(!requireRecentCall(lead)) return;
+vibrate(18);
+  actionLock = true;
+  setButtonsDisabled(true);
+  openApptModalFromLead(lead);
+  setTimeout(()=>{ actionLock=false; setButtonsDisabled(false); }, 450);
+}
+
+function uiQuote(){ return uiAppointment(); }
+
+function uiCallback(){
+  if(actionLock) return;
+  const lead = getCurrentLead();
+  if(!lead) return;
+    if(!requireRecentCall(lead)) return;
+vibrate(18);
+  actionLock = true;
+  setButtonsDisabled(true);
+  openCallbackModalFromLead(lead);
+  setTimeout(()=>{ actionLock=false; setButtonsDisabled(false); }, 450);
+}
+
+function askConfirm(type){
+  const isDNC = type==="Do Not Call";
+  const isWrong = type==="Wrong Number";
+  showDangerConfirm({
+    title: isDNC ? "🚫 DO NOT CALL" : (isWrong ? "❌ WRONG NUMBER" : "⚠️ CONFIRM"),
+    textHtml: isDNC
+      ? "This lead will be <b>permanently removed</b> and never shown again."
+      : (isWrong ? "This phone number will be <b>permanently removed</b>." : "This action cannot be undone."),
+    confirmLabel: "Confirm",
+    onConfirm: ()=> applyDisposition(type)
+  });
+}
+
+function uiDisposition(type){
+  if(actionLock) return;
+  const lead = getCurrentLead();
+  if(!lead) return;
+  if(!requireRecentCall(lead)) return;
+  if(type==="Do Not Call" || type==="Wrong Number"){
+    askConfirm(type);
+    return;
+  }
+  applyDisposition(type);
+}
+
+function applyDisposition(type){
+  const lead = getCurrentLead();
+  if(!lead || !requireRecentCall(lead)) return;
+  snapshot(type);
+  vibrate(18);
+
+  actionLock = true;
+  setButtonsDisabled(true);
+
+    if(type==="No Answer"){
+    lead.disposition = "No Answer";
+    lead.nextEligibleAt = null;
+    moveCurrentToEnd();
+  } else if(type==="Wrong Number"){
+    lead.disposition = "Wrong Number";
+    lead.nextEligibleAt = null;
+  } else if(type==="Do Not Call"){
+    lead.disposition = "Do Not Call";
+    lead.nextEligibleAt = null;
+  } else if(type==="Not Interested"){
+    lead.disposition = "Not Interested";
+    const d = new Date(); d.setDate(d.getDate()+45);
+    lead.nextEligibleAt = d.toISOString();
+  } else if(type==="Has State Farm"){
+    lead.disposition = "Has State Farm";
+    const d = new Date(); d.setDate(d.getDate()+120);
+    lead.nextEligibleAt = d.toISOString();
+  } else if(type==="Quote"){
+    lead.disposition = "Quote";
+    lead.nextEligibleAt = null;
+  } else {
+    lead.disposition = type;
+    lead.nextEligibleAt = null;
+  }
+
+  
+  lead.history = lead.history || [];
+  lead.history.unshift({ t: nowISO(), action: "disposition", value: type });
+
+  stopCallTimer();
+  addActivity({ leadId: lead.id, type: 'Disposition', detail: type });
+  state.holdLeadId = lead.id;
+  markAdvanceReady(lead, type);
+  saveAll();
+  const list = eligibleLeads();
+  if(state.currentIndex >= list.length) state.currentIndex = 0;
+  syncCursor();
+
+  renderAll();
+
+  setTimeout(()=>{ actionLock=false; setButtonsDisabled(false); }, 650);
+
+  showToast(`Disposition saved: ${type}`, [
+    { text:"Undo", onClick: ()=>{ if(restoreSnapshot()) showToast("Undone.", [], 1400); }, className:"" },
+    { text:"Fix", onClick: ()=>{ restoreSnapshot(); openChangeDisp(); }, className:"" },
+  ], 9000);
+
+  if(type==="No Answer" && canAdvance(getCurrentLead())) nextLead();
+}
+
+function jumpToLead(leadId){
+  const elig = eligibleLeads();
+  const pos = elig.findIndex(l=>l.id===leadId);
+  if(pos>=0){
+    state.currentIndex = pos;
+    state.cursorLeadId = leadId;
+    state.overrideLeadId = null;
+    resetAdvance();
+    saveAll();
+    setTab("hopper");
+    renderAll();
+    showToast("Opened lead.", [], 1400);
+    return;
+  }
+  setTab("leads");
+  renderLeadsTable();
+  showToast("Lead is not eligible in hopper (removed/snoozed). Use filters or Fix.", [
+    { text:"Fix", onClick: ()=>{ openChangeDisp(); }, className:"" },
+    { text:"OK", onClick: hideToast, className:"" },
+  ], 7000);
+}
+
+
+function nextLead(){
+  stopCallTimer();
+
+  // Capture the lead we *just worked*, even if it becomes removed/snoozed or moved.
+  const worked = getCurrentLead();
+  const workedId = worked && worked.id ? worked.id : null;
+
+  // leaving a held (post-disposition) view
+  state.holdLeadId = null;
+  // leaving a forced Previous view
+  state.overrideLeadId = null;
+
+  const list = eligibleLeads();
+  if(!list.length){ showToast("No eligible leads.", [], 1600); return; }
+
+  if(!canAdvance(worked)){
+    showToast("Set a disposition first, then tap Next Lead.", [], 2200);
+    return;
+  }
+
+  // push worked lead id for Previous
+  if(workedId){
+    state.prevStack = state.prevStack || [];
+    state.prevStack.push(workedId);
+  }
+
+  // Decide the next index WITHOUT letting syncCursor snap us back to the old cursorLeadId.
+  let nextIndex = 0;
+
+  if(workedId){
+    const pos = list.findIndex(l => l.id === workedId);
+    if(pos >= 0){
+      nextIndex = (pos + 1) % list.length;
+    } else {
+      // Worked lead is no longer eligible; keep currentIndex as-is (it already points at the next lead post-removal).
+      nextIndex = state.currentIndex;
+      if(nextIndex >= list.length) nextIndex = 0;
+    }
+  } else {
+    nextIndex = state.currentIndex;
+    if(nextIndex >= list.length) nextIndex = 0;
+  }
+
+  state.currentIndex = nextIndex;
+  state.cursorLeadId = list[nextIndex] ? list[nextIndex].id : null;
+
+  resetAdvance();
+  saveAll();
+  vibrate(14);
+  renderAll();
+}
+function prevLead(){
+  const stack = state.prevStack || [];
+  if(!stack.length){
+    showToast("No previous lead.", [], 1600);
+    return;
+  }
+  const prevId = stack.pop();
+  state.overrideLeadId = prevId; // show even if removed/snoozed
+  syncCursor();
+  resetAdvance();
+  saveAll();
+  vibrate(10);
+  renderAll();
+}
+function uiNoEnglish(){
+  if(actionLock) return;
+  const lead = getCurrentLead();
+  if(!lead) return;
+    if(!requireRecentCall(lead)) return;
+vibrate(18);
+  document.getElementById("neLang").value = "Spanish";
+  document.getElementById("neNotes").value = "";
+  document.getElementById("noEnglishModal").classList.remove("hidden");
+}
+function closeNoEnglish(){ document.getElementById("noEnglishModal").classList.add("hidden"); }
+function saveNoEnglish(){
+  const lead = getCurrentLead(); if(!lead) return;
+  const lang = safeText(document.getElementById("neLang").value) || "Spanish";
+  const notes = safeText(document.getElementById("neNotes").value);
+
+  snapshot("no-english");
+  vibrate(18);
+
+  lead.disposition = "No English";
+  lead.nextEligibleAt = null;
+  lead.noEnglishLang = lang;
+  lead.noEnglishNotes = notes;
+
+  lead.history = lead.history || [];
+  lead.history.unshift({ t: nowISO(), action: "disposition", value: `No English (${lang})`, notes });
+
+  state.noEnglish = state.noEnglish || [];
+  if(!state.noEnglish.some(x => x.leadId === lead.id)){
+    state.noEnglish.unshift({ leadId: lead.id, lang, notes, t: nowISO() });
+  }
+
+  addActivity({ leadId: lead.id, type: 'Disposition', detail: `No English (${lang})` });
+  state.holdLeadId = lead.id;
+  markAdvanceReady(lead, `No English (${lang})`);
+  saveAll();
+  closeNoEnglish();
+  renderAll();
+  showToast(`Saved: No English (${lang}). Tap Next Lead.`, [
+    { text:"Undo", onClick: ()=>{ if(restoreSnapshot()) showToast("Undone.", [], 1400); }, className:"" }
+  ], 9000);
+}
+function bindActivityClicks(){
+  const table = document.getElementById('activityTable');
+  if(!table || table._bound) return;
+  table._bound = true;
+  table.addEventListener('click', (e)=>{
+    const btn = e.target && e.target.closest ? e.target.closest('.js-view-lead') : null;
+    if(btn){
+      const id = btn.getAttribute('data-lead');
+      if(id) openEditLead(id);
+    }
+  });
+}
+
+function initActivityDate(){
+  const el = document.getElementById('activityDate');
+  if(!el) return;
+  if(!el.value){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    el.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
+
+function renderActivityLog(){
+  const table = document.getElementById('activityTable');
+  if(!table) return;
+  initActivityDate();
+  const day = document.getElementById('activityDate').value;
+  const start = new Date(day + 'T00:00:00');
+  const end = new Date(day + 'T23:59:59');
+  const items = (state.activityLog || []).filter(x => {
+    const t = new Date(x.t);
+    return t >= start && t <= end;
+  });
+  if(!items.length){
+    table.innerHTML = `<thead><tr><th>Time</th><th>Lead</th><th>Event</th><th>Detail</th><th>Action</th></tr></thead>`+
+      `<tbody><tr><td colspan='5' class='muted'>No activity for this day yet.</td></tr></tbody>`;
+    return;
+  }
+  // compute deltas between events (in seconds)
+  const sorted = items.slice().sort((a,b)=> new Date(a.t)-new Date(b.t));
+  const deltaMap = new Map();
+  for(let i=0;i<sorted.length;i++){
+    const prev = sorted[i-1];
+    const cur = sorted[i];
+    if(prev){
+      const ds = Math.max(0, Math.round((new Date(cur.t)-new Date(prev.t))/1000));
+      deltaMap.set(cur.id, ds);
+    }
+  }
+  table.innerHTML = `
+    <thead><tr><th>Time</th><th>Lead</th><th>Event</th><th>Detail</th><th>Action</th></tr></thead>
+    <tbody>
+      ${sorted.map(x=>{
+        const lead = x.leadId ? state.leads.find(l=>l.id===x.leadId) : null;
+        const name = lead ? ((`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim() || '—') : '—';
+        const phone = lead ? (fmtPhone(lead.phone)||'') : '';
+        const when = new Date(x.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const delta = deltaMap.has(x.id) ? `(+${deltaMap.get(x.id)}s)` : '';
+        return `
+          <tr>
+            <td>${escapeHtml(when)} <span class='muted'>${escapeHtml(delta)}</span></td>
+            <td>${escapeHtml(name)} <span class='muted'>${escapeHtml(phone)}</span></td>
+            <td>${escapeHtml(x.type)} ${x.type==='Edit Disposition' ? "<span class='badge purple'>EDITED</span>" : ''}</td>
+            <td class='muted'>${escapeHtml(x.detail || '')}</td>
+            <td>${x.leadId ? `<button class='toast-btn js-view-lead' data-lead='${x.leadId}'>View lead</button>` : ''}</td>
+          </tr>
+        `;
+      }).join('')}
+    </tbody>`;
+  bindActivityClicks();
+}
+
+
+
+function exportActivityCSV(){
+  initActivityDate();
+  const day = document.getElementById('activityDate').value;
+  const start = new Date(day + 'T00:00:00');
+  const end = new Date(day + 'T23:59:59');
+  const rows = (state.activityLog||[]).filter(x=>{
+    const t = new Date(x.t);
+    return t>=start && t<=end;
+  }).slice().sort((a,b)=> new Date(a.t)-new Date(b.t));
+  const header = ['time','leadName','phone','event','detail'];
+  const lines = [header.join(',')];
+  rows.forEach(x=>{
+    const lead = x.leadId ? state.leads.find(l=>l.id===x.leadId) : null;
+    const name = lead ? ((`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim()) : '';
+    const phone = lead ? cleanPhone(lead.phone) : '';
+    const vals = [new Date(x.t).toISOString(), name, phone, x.type, x.detail||''];
+    lines.push(vals.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `activity_${day}.csv`;
+  a.click();
+}
+
+
+function exportSessionFilteredCSV(){
+  // Filter = leads touched since sessionStartAt (calls, dispositions, callbacks, quotes)
+  const startAt = state.sessionStartAt ? new Date(state.sessionStartAt).getTime() : null;
+  const touchedIds = new Set();
+  const log = state.activityLog || [];
+  for(const e of log){
+    const tt = new Date(e.t).getTime();
+    if(isNaN(tt)) continue;
+    if(startAt && tt < startAt) continue;
+    if(e.leadId) touchedIds.add(e.leadId);
+  }
+  const touched = state.leads.filter(l => touchedIds.has(l.id));
+  const headers = ["firstName","lastName","phone","email","address","city","state","zip","disposition","nextEligibleAt","lastCallAt"];
+  const lines = [headers.join(",")];
+  for(const l of touched){
+    const row = [
+      safeText(l.firstName),
+      safeText(l.lastName),
+      cleanPhone(l.phone),
+      safeText(l.email),
+      safeText(l.address),
+      safeText(l.city),
+      safeText(l.state),
+      safeText(l.zip),
+      safeText(l.disposition || "New"),
+      safeText(l.nextEligibleAt || ""),
+      (lastCallAt(l) ? lastCallAt(l).toISOString() : "")
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    lines.push(row.join(","));
+  }
+  const blob = new Blob([lines.join("\n")], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.download = `session_filtered_${stamp}.csv`;
+  a.click();
+}
+
+function endSession(){
+  if(!state.sessionStartAt) {showToast('No active session.',[],1800);return;}
+  const startedAt=state.sessionStartAt, endedAt=nowISO(), id=uid();
+  state.sessions=state.sessions||[];
+  state.sessions.push({id,startedAt,endedAt,exportedAt:null});
+  state.sessionStartAt=null;
+  addActivity({type:'Session Ended',detail:id});
+  saveAll();
+  const rows=[['first_name','last_name','phone','disposition','last_call']];
+  for(const l of state.leads){if((l.calls||[]).some(c=>c.t>=startedAt&&c.t<=endedAt))rows.push([l.firstName,l.lastName,l.phone,l.disposition,lastCallAt(l)||'']);}
+  v19AfterCommit(function(){downloadText('lead-hopper-session-'+id+'.csv',rows.map(r=>r.map(csvEscape).join(',')).join('\r\n'),'text/csv',id);});
+}
+
+
+
+function renderNoEnglishList(){
+  const el = document.getElementById("noEnglishList");
+  if(!el) return;
+  const list = (state.noEnglish || []).slice();
+  if(!list.length){
+    el.innerHTML = `<div class="kv"><div class="k">Empty</div><div class="v">No “No English” leads yet.</div></div>`;
+    return;
+  }
+  el.innerHTML = list.map(item => {
+    const lead = state.leads.find(l => l.id === item.leadId) || null;
+    const name = lead ? (`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim() : "Unknown";
+    const phone = lead ? fmtPhone(lead.phone) : "";
+    const when = item.t ? new Date(item.t).toLocaleString() : "";
+    const notes = item.notes || "—";
+    return `
+      <div class="card" style="border-radius:16px; margin-bottom: 12px;">
+        <div class="card-h">
+          <div>
+            <div class="title"><span class="badge orange">No English</span> ${escapeHtml(name)}</div>
+            <div class="desc">${escapeHtml(phone)} • ${escapeHtml(item.lang || "")} • ${escapeHtml(when)}</div>
+          </div>
+          <div class="row" style="align-items:center;">
+            ${lead ? `<button class="btn btn-ghost js-open-person" data-person="${escapeHtml(lead.id)}">Open</button>` : ""}
+          </div>
+        </div>
+        <div class="card-b"><div class="hint">${escapeHtml(notes)}</div></div>
+      </div>
+    `;
+  }).join("");
+}
+function exportNoEnglish(){
+  const rows = [];
+  rows.push(["lead_id","first_name","last_name","phone","email","address","city","state","zip","lang","notes","saved_at"]);
+  for(const item of (state.noEnglish||[])){
+    const l = state.leads.find(x => x.id === item.leadId) || {};
+    rows.push([
+      item.leadId,
+      safeText(l.firstName), safeText(l.lastName),
+      fmtPhone(l.phone), safeText(l.email),
+      safeText(l.address), safeText(l.city), safeText(l.state), safeText(l.zip),
+      safeText(item.lang), safeText(item.notes),
+      item.t ? new Date(item.t).toLocaleString() : ""
+    ]);
+  }
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\n");
+  downloadText(`no_english_list_${ymdLocal(new Date())}.csv`, csv, "text/csv");
+  showToast("No English list exported.", [], 1800);
+}
+
+
+/* Import/Export */
+function openImport(){ document.getElementById("importModal").classList.remove("hidden"); }
+function closeImport(){ document.getElementById("importModal").classList.add("hidden"); }
+function parseDTLocal(v){ const d=new Date(v); return isNaN(d.getTime())?null:d; }
+function toLocalDTInputValue(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function splitCSVLine(line){
+  const out=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch=='"'){
+      if(inQ && line[i+1]=='"'){ cur+='"'; i++; } else inQ=!inQ;
+    } else if(ch=="," && !inQ){ out.push(cur); cur=""; }
+    else cur+=ch;
+  }
+  out.push(cur);
+  return out.map(s=>s.trim());
+}
+function parseCSV(text){
+  const rows=[];let row=[],field='',quoted=false;
+  text=String(text).replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}
+    else if(c===','&&!quoted){row.push(field);field='';}
+    else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(x=>x.length))rows.push(row);row=[];field='';}
+    else field+=c;
+  }
+  if(quoted)throw new Error('Unclosed CSV quote.');
+  row.push(field);if(row.some(x=>x.length))rows.push(row);
+  if(rows.length<2)throw new Error('CSV requires a header and data.');
+  const headers=rows.shift().map(x=>x.trim());
+  return rows.map(cols=>{if(cols.length!==headers.length)throw new Error('CSV column count differs from header.');const out=Object.create(null);headers.forEach((h,i)=>out[h]=cols[i]);return out;});
+}
+
+function pick(x, keys){
+  for(const k of keys){
+    if(x && Object.prototype.hasOwnProperty.call(x,k) && String(x[k]).trim()!=="") return x[k];
+    const kk = Object.keys(x||{}).find(h => h.toLowerCase().trim() === k.toLowerCase().trim());
+    if(kk && String(x[kk]).trim()!=="") return x[kk];
+  }
+  return "";
+}
+function normalizeLead(x){
+  const first = pick(x, ["firstName","first","firstname","first name","first_name","fname","givenname","given name"]);
+  const last  = pick(x, ["lastName","last","lastname","last name","last_name","lname","surname","familyname","family name"]);
+  const phone = pick(x, ["phone","phoneNumber","phone number","mobile","mobilePhone","mobile phone","cell","cellPhone","cell phone","primary phone","primary_phone"]);
+  const email = pick(x, ["email","e-mail","emailAddress","email address","mail"]);
+  const addr  = pick(x, ["address","street","streetAddress","street address","address1","address 1","line1","address_line1"]);
+  const city  = pick(x, ["city","town"]);
+  const state = pick(x, ["state","st","province"]);
+  const zip   = pick(x, ["zip","zipcode","zip code","postal","postalCode","postal code"]);
+  const disp  = pick(x, ["disposition","status"]) || (x.disposition || "New");
+
+  return {
+    id: uid(),
+    legacyImportId: x.id == null ? null : String(x.id),
+    notes: safeText(x.notes),
+    firstName: safeText(first),
+    lastName: safeText(last),
+    phone: cleanPhone(phone),
+    email: safeText(email),
+    address: safeText(addr),
+    city: safeText(city),
+    state: safeText(state),
+    zip: safeText(zip),
+    disposition: disp || "New",
+    nextEligibleAt: x.nextEligibleAt || null,
+    calls: Array.isArray(x.calls) ? x.calls : [],
+    history: Array.isArray(x.history) ? x.history : []
+  };
+}
+function doImport(){
+  const fmt=document.getElementById("importFormat").value;
+  const mode=(document.getElementById("importMode")||{}).value || "merge";
+  const txt=document.getElementById("importText").value.trim();
+  if(!txt){ showToast("Paste data first.", [], 1800); return; }
+  try{
+    let leads=[];
+    if(fmt==="json"){
+      const arr=JSON.parse(txt);
+      if(!Array.isArray(arr)) throw new Error("JSON must be an array.");
+      leads=arr.map(normalizeLead);
+    } else {
+      leads=parseCSV(txt).map(normalizeLead);
+    }
+    // de-dupe (only when we have a meaningful key)
+    const seen=new Set(); const ded=[];
+    for(let i=0;i<leads.length;i++){
+      const l = leads[i];
+      const phoneKey = cleanPhone(l.phone);
+      const nameKey = `${safeText(l.firstName).toLowerCase()}|${safeText(l.lastName).toLowerCase()}`;
+      let key = "";
+      if(phoneKey) key = `p:${phoneKey}`;
+      else if(nameKey !== "|") key = `n:${nameKey}`;
+      else key = `row:${i}:${l.id}`; // don't collapse blank rows into one
+      if(seen.has(key)) continue;
+      seen.add(key);
+      ded.push(l);
+    }
+    snapshot("import");
+    if(mode==="replace"){
+      const protectedByPhone = new Map((state.leads||[]).filter(l=>isRemoved(l)).map(l=>[cleanPhone(l.phone),l]).filter(([p])=>!!p));
+      for(const lead of ded){
+        const old=protectedByPhone.get(cleanPhone(lead.phone));
+        if(old){ lead.disposition=old.disposition; lead.history=old.history||[]; }
+      }
+      state.leads=ded;
+      state.currentIndex=0;
+      state.cursorLeadId=ded[0]?ded[0].id:null;
+      state.holdLeadId=null;
+      state.overrideLeadId=null;
+      state.prevStack=[];
+      resetAdvance();
+    } else {
+      const keys=new Set((state.leads||[]).map(l=>cleanPhone(l.phone)?`p:${cleanPhone(l.phone)}`:`n:${safeText(l.firstName).toLowerCase()}|${safeText(l.lastName).toLowerCase()}`));
+      for(const lead of ded){
+        const key=cleanPhone(lead.phone)?`p:${cleanPhone(lead.phone)}`:`n:${safeText(lead.firstName).toLowerCase()}|${safeText(lead.lastName).toLowerCase()}`;
+        if(!keys.has(key)){ state.leads.push(lead); keys.add(key); }
+      }
+      if(!state.cursorLeadId&&state.leads[0]) state.cursorLeadId=state.leads[0].id;
+    }
+    saveAll();
+    closeImport();
+    renderAll();
+    showToast(`${mode==="merge"?"Merged":"Imported"} ${ded.length} rows; ${state.leads.length} total leads.`, [], 2600);
+  }catch(e){
+    showToast("Import failed: " + e.message, [], 5000);
+  }
+}
+function exportData(){
+  downloadText('lead-hopper-full-backup.json',JSON.stringify(v19BuildBackupEnvelope(),null,2),'application/json');
+}
+
+/* Callback */
+function openCallbackModalFromLead(lead){
+  document.getElementById("cbPhone").value = fmtPhone(lead.phone);
+  document.getElementById("cbNotes").value = "";
+  const d=new Date(); d.setMinutes(d.getMinutes()+30);
+  document.getElementById("cbWhen").value = toLocalDTInputValue(d);
+  document.getElementById("callbackModal").classList.remove("hidden");
+}
+function closeCallback(){ document.getElementById("callbackModal").classList.add("hidden"); }
+function saveCallback(){
+  const lead=getCurrentLead(); if(!lead || !requireRecentCall(lead)) return;
+  const when=parseDTLocal(document.getElementById("cbWhen").value);
+  if(!when || when.getTime()<=Date.now()){ showToast("Pick a future callback time.", [], 2000); return; }
+  const notes=safeText(document.getElementById("cbNotes").value);
+  snapshot("callback");
+  state.schedule.unshift({
+    id: uid(), type:"callback", leadId: lead.id,
+    when: when.toISOString(),
+    name: (`${safeText(lead.firstName)} ${safeText(lead.lastName)}`).trim(),
+    phone: fmtPhone(lead.phone),
+    notes, done:false, createdAt: nowISO()
+  });
+  stopCallTimer();
+  addActivity({ leadId: lead.id, type: 'Callback', detail: when ? new Date(when).toLocaleString() : 'Scheduled' });
+  lead.disposition = "Callback";
+  state.holdLeadId = lead.id;
+  markAdvanceReady(lead, "Callback");
+  saveAll();
+  closeCallback();
+  renderAll();
+  showToast("Callback saved.", [
+    { text:"Undo", onClick: ()=>{ if(restoreSnapshot()) showToast("Undone.", [], 1400); }, className:"" }
+  ], 7000);
+}
+
+/* Appointment */
+function openApptModalFromLead(lead){
+  document.getElementById("apptFirst").value = safeText(lead.firstName);
+  document.getElementById("apptLast").value = safeText(lead.lastName);
+  document.getElementById("apptSpouseFirst").value = "";
+  document.getElementById("apptSpouseLast").value = "";
+  document.getElementById("apptPhone").value = fmtPhone(lead.phone);
+  document.getElementById("apptEmail").value = safeText(lead.email);
+  document.getElementById("apptAddress").value = [lead.address,lead.city,lead.state,lead.zip].map(safeText).filter(Boolean).join(", ");
+  document.getElementById("apptNotes").value = "";
+  const d=new Date(); d.setMinutes(d.getMinutes()+60);
+  document.getElementById("apptWhen").value = toLocalDTInputValue(d);
+  document.getElementById("apptModal").classList.remove("hidden");
+}
+function closeAppt(){ document.getElementById("apptModal").classList.add("hidden"); }
+function apptConflicts(isoWhen){
+  const when=new Date(isoWhen).getTime();
+  const appts=state.schedule.filter(s=>s.type==="appointment" && !s.done);
+  for(const a of appts){
+    const t=new Date(a.when).getTime();
+    if(Math.abs(t-when) < 7200000) return a;
+  }
+  return null;
+}
+function saveAppointment(){
+  const lead=getCurrentLead(); if(!lead || !requireRecentCall(lead)) return;
+  const when=parseDTLocal(document.getElementById("apptWhen").value);
+  if(!when || when.getTime()<=Date.now()){ showToast("Pick a future appointment time.", [], 2000); return; }
+  const iso=when.toISOString();
+  if(apptConflicts(iso)){ showToast("Appointment must be 2+ hours apart. Pick a different time.", [], 3500); return; }
+
+  snapshot("appointment");
+  state.schedule.unshift({
+    id: uid(), type:"appointment", leadId: lead.id,
+    when: iso,
+    name: (`${safeText(document.getElementById("apptFirst").value)} ${safeText(document.getElementById("apptLast").value)}`).trim(),
+    phone: safeText(document.getElementById("apptPhone").value),
+    email: safeText(document.getElementById("apptEmail").value),
+    address: safeText(document.getElementById("apptAddress").value),
+    spouseFirst: safeText(document.getElementById("apptSpouseFirst").value),
+    spouseLast: safeText(document.getElementById("apptSpouseLast").value),
+    notes: safeText(document.getElementById("apptNotes").value),
+    done:false, createdAt: nowISO()
+  });
+  stopCallTimer();
+  addActivity({ leadId: lead.id, type: 'Appointment', detail: when ? new Date(when).toLocaleString() : 'Scheduled' });
+  lead.disposition = "Appointment Set";
+  state.holdLeadId = lead.id;
+  markAdvanceReady(lead, "Appointment Set");
+  saveAll();
+  closeAppt();
+  renderAll();
+  showToast("Appointment saved.", [
+    { text:"Undo", onClick: ()=>{ if(restoreSnapshot()) showToast("Undone.", [], 1400); }, className:"" },
+    { text:"Go to schedule", onClick: ()=>{ setTab("schedule"); renderSchedule(); }, className:"" }
+  ], 8500);
+}
+
+/* Fix disposition */
+function openChangeDisp(){ document.getElementById("changeDispModal").classList.remove("hidden"); }
+function closeChangeDisp(){ document.getElementById("changeDispModal").classList.add("hidden"); }
+function applyChangeDisp(){
+  const v=document.getElementById("changeDispSelect").value;
+  closeChangeDisp();
+  if(v==="Callback"){ uiCallback(); return; }
+  if(v==="Appointment" || v==="Quote"){ uiAppointment(); return; }
+  uiDisposition(v==="Not Interested" ? "Not Interested" : v);
+}
+
+/* Schedule add */
+function openScheduleAdd(){
+  const d=new Date(); d.setMinutes(d.getMinutes()+30);
+  document.getElementById("schedType").value="callback";
+  document.getElementById("schedWhen").value=toLocalDTInputValue(d);
+  document.getElementById("schedName").value="";
+  document.getElementById("schedPhone").value="";
+  document.getElementById("schedNotes").value="";
+  document.getElementById("scheduleAddModal").classList.remove("hidden");
+}
+function closeScheduleAdd(){ document.getElementById("scheduleAddModal").classList.add("hidden"); }
+function saveScheduleAdd(){
+  const type=document.getElementById("schedType").value;
+  const when=parseDTLocal(document.getElementById("schedWhen").value);
+  if(!when || when.getTime()<=Date.now()){ showToast("Pick a future time.", [], 2000); return; }
+  if(type==="appointment" && apptConflicts(when.toISOString())){
+    showToast("Appointment must be 2+ hours apart. Pick a different time.", [], 3500); return;
+  }
+  state.schedule.unshift({
+    id: uid(), type, leadId:null,
+    when: when.toISOString(),
+    name: safeText(document.getElementById("schedName").value),
+    phone: safeText(document.getElementById("schedPhone").value),
+    notes: safeText(document.getElementById("schedNotes").value),
+    done:false, createdAt: nowISO()
+  });
+  saveAll();
+  closeScheduleAdd();
+  renderSchedule();
+  showToast("Schedule item saved.", [], 1800);
+}
+function markScheduleDone(id){
+  const item=state.schedule.find(s=>s.id===id); if(!item) return;
+  snapshot("schedule-done");
+  item.done=true;
+  saveAll();
+  renderSchedule();
+  showToast("Marked done.", [{ text:"Undo", onClick: ()=>{ if(restoreSnapshot()) showToast("Undone.", [], 1400); }, className:"" }], 3500);
+}
+
+/* Delete all */
+function confirmDeleteAll(){
+  showDangerConfirm({
+    title: "🗑️ CLEAR EVERYTHING",
+    textHtml: "This will permanently delete <b>ALL leads, callbacks, quotes,</b> and your <b>progress</b> on this device.<br/><br/><b>This cannot be undone.</b>",
+    confirmLabel: "Yes, clear everything",
+    onConfirm: deleteAll
+  });
+}
+function deleteAll(){
+  state = { leads: [], schedule: [], callLog: [], activityLog: [], currentIndex: 0, cursorLeadId: null, holdLeadId: null, overrideLeadId: null, advance:{ready:false,leadId:null,disp:null,t:null}, prevStack:[], noEnglish:[], settings:{cphGoal:20}, callSession:null, activeTab:'hopper' };
+  saveAll();
+  renderAll();
+  showToast("Deleted.", [], 1600);
+}
+function resetUI(){ showToast("UI reset (no-op in rewrite).", [], 1400); }
+
+/* Init */
+function wireImportFile(){
+  const f = document.getElementById('importFile');
+  if(!f) return;
+  f.addEventListener('change', () => {
+    const file = f.files && f.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('importText').value = reader.result || '';
+      const name = (file.name || '').toLowerCase();
+      if(name.endsWith('.json')) document.getElementById('importFormat').value = 'json';
+      else document.getElementById('importFormat').value = 'csv';
+      showToast('Loaded file: ' + (file.name||''), [], 1600);
+    };
+    reader.readAsText(file);
+  });
+}
+
+
+/* Daily report */
+function ymdLocal(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function inDay(iso, ymd){
+  if(!iso) return false;
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return false;
+  return ymdLocal(d) === ymd;
+}
+function csvEscape(v){
+  let s = String(v ?? "");
+  if(/^[\s\x00-\x1f]*[=+@-]/.test(s)) s="\'"+s;
+  if(/[",\r\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function downloadText(filename, text, mime="text/plain"){
+  const blob = new Blob([text], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 800);
+}
+function generateDailyReport(){
+  const inp = document.getElementById("reportDate");
+  const ymd = inp && inp.value ? inp.value : ymdLocal(new Date());
+  if(inp && !inp.value) inp.value = ymd;
+  const dayCalls=(state.callLog||[]).filter(c=>inDay(c.t,ymd)).slice().sort((a,b)=>new Date(a.t)-new Date(b.t));
+  const dayActivity=(state.activityLog||[]).filter(a=>inDay(a.t,ymd)).slice().sort((a,b)=>new Date(a.t)-new Date(b.t));
+  const createdToday=(state.schedule||[]).filter(s=>inDay(s.createdAt,ymd));
+  const scheduleToday=(state.schedule||[]).filter(s=>inDay(s.when,ymd)).slice().sort((a,b)=>new Date(a.when)-new Date(b.when));
+  const touchedIds=new Set([...dayCalls.map(c=>c.leadId),...dayActivity.map(a=>a.leadId)].filter(Boolean));
+  const leadMap=new Map((state.leads||[]).map(l=>[l.id,l]));
+  const leadRows=[...touchedIds].map(id=>leadMap.get(id)).filter(Boolean).map(l=>{const calls=dayCalls.filter(c=>c.leadId===l.id);const follow=(state.schedule||[]).filter(s=>s.leadId===l.id&&!s.done).sort((a,b)=>new Date(a.when)-new Date(b.when))[0];return `<tr><td>${escapeHtml([l.firstName,l.lastName].filter(Boolean).join(' ')||'Unnamed')}</td><td>${escapeHtml(fmtPhone(l.phone))}</td><td>${calls.length}</td><td>${escapeHtml(leadDisposition(l))}</td><td>${follow?escapeHtml(`${follow.type} — ${new Date(follow.when).toLocaleString()}`):'—'}</td></tr>`;}).join('')||`<tr><td colspan="5">No leads were worked on this date.</td></tr>`;
+  const activityRows=dayActivity.map(a=>{const l=leadMap.get(a.leadId)||{};return `<tr><td>${escapeHtml(new Date(a.t).toLocaleTimeString())}</td><td>${escapeHtml([l.firstName,l.lastName].filter(Boolean).join(' ')||'—')}</td><td>${escapeHtml(a.type)}</td><td>${escapeHtml(a.detail)}</td></tr>`;}).join('')||`<tr><td colspan="4">No activity recorded.</td></tr>`;
+  const scheduleRows=scheduleToday.map(s=>`<tr><td>${escapeHtml(new Date(s.when).toLocaleString())}</td><td>${escapeHtml(s.type)}</td><td>${escapeHtml(s.name||'—')}</td><td>${escapeHtml(s.phone||'—')}</td><td>${escapeHtml(s.notes||'')}</td><td>${s.done?'Done':'Open'}</td></tr>`).join('')||`<tr><td colspan="6">Nothing scheduled for this date.</td></tr>`;
+  const callbacks=createdToday.filter(s=>s.type==='callback').length,appointments=createdToday.filter(s=>s.type==='appointment').length;
+  const conversion=dayCalls.length?((appointments/dayCalls.length)*100).toFixed(1)+'%':'0%';
+  const report=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Lead Hopper Daily Report — ${escapeHtml(ymd)}</title><style>body{font-family:Arial,sans-serif;color:#18212f;max-width:1100px;margin:30px auto;padding:0 18px}h1{margin-bottom:4px}.sub{color:#667085}.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0}.kpi{background:#f3f6fa;border:1px solid #dfe5ec;border-radius:10px;padding:14px}.n{font-size:28px;font-weight:800}.l{font-size:12px;color:#667085;text-transform:uppercase}table{width:100%;border-collapse:collapse;margin:8px 0 26px}th,td{text-align:left;padding:9px;border-bottom:1px solid #dfe5ec;font-size:13px}th{background:#f7f9fb}h2{margin-top:28px}@media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}table{display:block;overflow:auto}}@media print{body{margin:0}.kpi{break-inside:avoid}}</style></head><body><h1>Lead Hopper Daily Work Report</h1><div class="sub">${escapeHtml(ymd)} • Generated ${escapeHtml(new Date().toLocaleString())} • V12</div><div class="kpis"><div class="kpi"><div class="n">${dayCalls.length}</div><div class="l">Calls</div></div><div class="kpi"><div class="n">${new Set(dayCalls.map(c=>c.leadId)).size}</div><div class="l">Unique leads</div></div><div class="kpi"><div class="n">${callbacks}</div><div class="l">Callbacks set</div></div><div class="kpi"><div class="n">${appointments}</div><div class="l">Appointments set</div></div><div class="kpi"><div class="n">${conversion}</div><div class="l">Appointments / calls</div></div></div><h2>Leads Worked</h2><table><thead><tr><th>Lead</th><th>Phone</th><th>Calls</th><th>Current disposition</th><th>Next follow-up</th></tr></thead><tbody>${leadRows}</tbody></table><h2>Activity Timeline</h2><table><thead><tr><th>Time</th><th>Lead</th><th>Event</th><th>Detail</th></tr></thead><tbody>${activityRows}</tbody></table><h2>Schedule for ${escapeHtml(ymd)}</h2><table><thead><tr><th>When</th><th>Type</th><th>Name</th><th>Phone</th><th>Notes</th><th>Status</th></tr></thead><tbody>${scheduleRows}</tbody></table></body></html>`;
+  downloadText(`lead_hopper_daily_report_${ymd}.html`,report,"text/html");
+  showToast(`Daily report downloaded for ${ymd}.`,[],3200);
+}
+
+let initialized=false;
+function init(){
+  if(initialized) return;
+  initialized=true;
+  // Disposition picker (modal)
+  const dispBtn = document.getElementById('dispBtn');
+  const dispMenu = document.getElementById('dispMenu');
+  const dispLabel = document.getElementById('dispBtnLabel');
+  const dispHidden = document.getElementById('editDisp');
+  const closeDispMenu = ()=>{ if(!dispMenu) return; dispMenu.classList.add('hidden'); if(dispBtn) dispBtn.setAttribute('aria-expanded','false'); };
+  if(dispBtn && dispMenu){
+    dispBtn.addEventListener('click', (e)=>{
+      if(dispBtn.disabled) return;
+      const isHidden = dispMenu.classList.contains('hidden');
+      if(isHidden){ dispMenu.classList.remove('hidden'); dispBtn.setAttribute('aria-expanded','true'); }
+      else { closeDispMenu(); }
+    });
+    dispMenu.addEventListener('click', (e)=>{
+      const opt = e.target.closest('.disp-opt');
+      if(!opt) return;
+      const val = opt.getAttribute('data-value') || '';
+      if(dispHidden) dispHidden.value = val;
+      if(dispLabel) dispLabel.textContent = (val === 'Not Interested') ? 'Not Interested (45 days)' : val;
+      closeDispMenu();
+    });
+    document.addEventListener('click', (e)=>{
+      if(!dispMenu || dispMenu.classList.contains('hidden')) return;
+      if(e.target === dispBtn || dispBtn.contains(e.target) || dispMenu.contains(e.target)) return;
+      closeDispMenu();
+    });
+  }
+
+  // Delegated clicks (avoids inline onclick issues in some browsers)
+  document.addEventListener('click', (e)=>{
+    const btn = e.target && e.target.closest ? e.target.closest('.js-view-lead') : null;
+    if(btn){
+      const id = btn.getAttribute('data-lead');
+      if(id) openEditLead(id);
+    }
+  });
+
+  loadAll();
+  state.overrideLeadId=null;
+  syncCursor();
+  renderTopMetrics();
+  if(state.callSession){ try{ if(_timerTick) clearInterval(_timerTick); _timerTick = setInterval(renderTopMetrics, 1000); }catch(e){} }
+
+  document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if(e.target===m) m.classList.add("hidden"); }));
+  setTab(state.activeTab||"hopper",false);
+  wireImportFile();
+  const rd = document.getElementById("reportDate");
+  if(rd){ rd.value = ymdLocal(new Date()); }
+  renderAll();
+  setInterval(renderProgress, 1500);
+}
+
+function closeEditLead(){
+  const m = document.getElementById('editLeadModal');
+  if(m) m.classList.add('hidden');
+  state.editingLeadId = null;
+  setLeadEditEnabled(false);
+}
+function setLeadEditEnabled(on){
+  const ids = ['editFirst','editLast','editPhone','editEmail','editAddress','editNotes'];
+  ids.forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !on; });
+  const dispBtn = document.getElementById('dispBtn');
+  if(dispBtn) dispBtn.disabled = !on;
+  const save = document.getElementById('btnSaveEdit');
+  if(save) save.disabled = !on;
+  const btn = document.getElementById('btnEnableEdit');
+  if(btn) btn.textContent = on ? 'Editing…' : 'Edit';
+}
+function enableLeadEdit(){ setLeadEditEnabled(true); }
+
+function openEditLead(leadId){
+  const lead = state.leads.find(l=>l.id===leadId);
+  if(!lead){ showToast('Lead not found.', [], 1600); return; }
+  state.editingLeadId = leadId;
+
+  document.getElementById('editFirst').value = safeText(lead.firstName||'');
+  document.getElementById('editLast').value  = safeText(lead.lastName||'');
+  document.getElementById('editPhone').value = fmtPhone(lead.phone) || safeText(lead.phone||'');
+  document.getElementById('editEmail').value = safeText(lead.email||'');
+  const addr = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
+  document.getElementById('editAddress').value = safeText(addr || lead.address || '');
+    const curDisp = (lead.disposition || '').trim();
+  const normalized = (curDisp === 'New' || curDisp === '') ? '' : curDisp;
+  document.getElementById('editDisp').value = normalized;
+  const lbl = document.getElementById('dispBtnLabel');
+  if(lbl){ lbl.textContent = normalized ? (
+      normalized === 'Appointment Set' ? 'Appointment Set' :
+      normalized === 'Not Interested' ? 'Not Interested (45 days)' :
+      normalized
+    ) : '— Select disposition —'; }
+
+  document.getElementById('editNotes').value = '';
+
+  setLeadEditEnabled(false);
+
+  const pill = document.getElementById('editMetaPill');
+  if(pill){
+    if(lead.lastEditedAt){
+      const t = new Date(lead.lastEditedAt);
+      pill.textContent = 'Edited: ' + (isNaN(t.getTime()) ? lead.lastEditedAt : t.toLocaleString());
+    } else {
+      pill.textContent = 'Viewing';
+    }
+  }
+
+  document.getElementById('editLeadModal').classList.remove('hidden');
+  vibrate(14);
+}
+
+function saveEditLead(){
+  const leadId = state.editingLeadId;
+  const lead = state.leads.find(l=>l.id===leadId);
+  if(!lead){ closeEditLead(); return; }
+
+  const oldDisp = leadDisposition(lead);
+
+  lead.firstName = safeText(document.getElementById('editFirst').value);
+  lead.lastName  = safeText(document.getElementById('editLast').value);
+  lead.phone     = safeText(document.getElementById('editPhone').value);
+  lead.email     = safeText(document.getElementById('editEmail').value);
+
+  const fullAddr = safeText(document.getElementById('editAddress').value);
+  lead.address = fullAddr;
+
+  const newDisp = safeText(document.getElementById('editDisp').value);
+  const notes = safeText(document.getElementById('editNotes').value);
+
+  // side effects for disposition
+  if(newDisp==='Wrong Number' || newDisp==='Do Not Call'){
+    lead.disposition = newDisp;
+    lead.nextEligibleAt = null;
+  } else if(newDisp==='Not Interested'){
+    lead.disposition = 'Not Interested';
+    const d = new Date(); d.setDate(d.getDate()+45);
+    lead.nextEligibleAt = d.toISOString();
+  } else if(newDisp==='Has State Farm'){
+    lead.disposition = 'Has State Farm';
+    const d = new Date(); d.setDate(d.getDate()+120);
+    lead.nextEligibleAt = d.toISOString();
+  } else {
+    lead.disposition = newDisp || 'New';
+    lead.nextEligibleAt = null;
+  }
+
+  const editTime = nowISO();
+  lead.lastEditedAt = editTime;
+  lead.edited = true;
+
+  lead.history = lead.history || [];
+  lead.history.unshift({ t: editTime, action:'edit', from: oldDisp, to: newDisp, notes });
+
+  addActivity({ leadId: lead.id, type: 'Edit Disposition', detail: `${oldDisp} → ${newDisp}${notes?` • ${notes}`:''}` });
+
+  saveAll();
+  closeEditLead();
+  renderAll();
+  renderLeadsTable();
+  renderSchedule();
+  renderActivityLog();
+  showToast('Saved changes.', [], 1800);
+}
+
+
+if(document.readyState==='loading') window.addEventListener('DOMContentLoaded',init,{once:true});
+else init();
+window.addEventListener('pagehide',saveAll);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveAll(); });
+
+// Home button: clicking the LH badge always takes you back to Hopper (no state loss)
+(function(){
+  const hb = document.getElementById('homeBtn');
+  if(!hb) return;
+  const goHome = () => { try{ setTab('hopper'); window.scrollTo({top:0, behavior:'smooth'}); }catch(e){ setTab('hopper'); } };
+  hb.addEventListener('click', goHome);
+  hb.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      goHome();
+    }
+  });
+})();
+
+</script>
+
+  <!-- Big safeguard modal -->
+  <div class="modal hidden" id="dangerModal">
+    <div class="modal-card danger-modal">
+      <div class="danger-title" id="dangerTitle">⚠️ Confirm</div>
+      <div class="danger-sub" id="dangerText">This action cannot be undone.</div>
+      <div class="danger-actions">
+        <button class="btn btn-ghost" onclick="closeDanger()">Cancel</button>
+        <button class="btn btn-dnc" id="dangerConfirmBtn">
+          <span class="btn-content"><span class="ico">⚠️</span><span class="label" id="dangerConfirmLabel">Confirm</span></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- View / Edit Lead modal -->
+  <div class="modal hidden" id="editLeadModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-title">Lead Details</div>
+      <div class="modal-sub">Review the lead. Tap <strong>Edit</strong> to unlock fields (including disposition). Saving records an <strong>Edit Disposition</strong> event with a timestamp.</div>
+
+      <div class="row" style="justify-content:space-between; gap:10px; margin-top:10px;">
+        <div class="hint-pill" id="editMetaPill"><span>👁️</span><span>Viewing</span></div>
+        <div class="row" style="gap:10px;">
+          <button class="btn btn-ghost" id="btnEnableEdit" onclick="enableLeadEdit()">Edit</button>
+          <button class="btn btn-ghost" onclick="closeEditLead()">Close</button>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:12px;">
+        <div class="field">
+          <label>First name</label>
+          <input id="editFirst" disabled />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input id="editLast" disabled />
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>Phone</label>
+          <input id="editPhone" disabled />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input id="editEmail" disabled />
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>Address</label>
+        <input id="editAddress" disabled />
+      </div>
+
+      <div class="two-col" style="margin-top:10px;">
+        <div class="field">
+          <label>Disposition</label>
+          
+<div class="disp-picker">
+  <button type="button" id="dispBtn" class="disp-btn" disabled aria-haspopup="listbox" aria-expanded="false">
+    <span id="dispBtnLabel">— Select disposition —</span>
+    <span class="caret">▾</span>
+  </button>
+  <div id="dispMenu" class="disp-menu hidden" role="listbox" aria-label="Disposition options">
+    <div class="disp-opt" data-value="No Answer">No Answer</div>
+    <div class="disp-opt" data-value="Callback">Callback</div>
+    <div class="disp-opt" data-value="Appointment Set">Appointment Set</div>
+    <div class="disp-opt" data-value="Not Interested">Not Interested (45 days)</div>
+    <div class="disp-opt" data-value="No English">No English</div>
+    <div class="disp-opt" data-value="Wrong Number">Wrong Number</div>
+    <div class="disp-opt" data-value="Do Not Call">Do Not Call</div>
+  </div>
+  <input type="hidden" id="editDisp" value=""/>
+</div>
+
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <input id="editNotes" disabled placeholder="Optional notes about this change…" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeEditLead()">Cancel</button>
+        <button class="btn btn-solid" id="btnSaveEdit" onclick="saveEditLead()" disabled>Save changes</button>
+      </div>
+    </div>
+  </div>
+
+
+
+<style id="v13Styles">
+:root{--glass:rgba(11,16,32,.76);--glass2:rgba(255,255,255,.075)}
+html,body{min-height:100%;height:auto} body{overscroll-behavior:none}.app{max-width:720px;margin:8px auto;padding:0 8px calc(12px + env(safe-area-inset-bottom))}.topbar{top:6px;padding:8px 10px;border-radius:16px}.brand .sub{display:none}.brand h1{font-size:15px}.v13-menu-btn{color:var(--text);font-size:21px;cursor:pointer}.v13-old-tabs{display:none!important}.top-actions>button{display:none}.top-actions .goal{display:none}.top-actions{gap:5px}.pill{padding:5px 8px;font-size:11px}.card{margin-top:8px!important}.card-b#tab-hopper{padding:8px}.lead-block{margin-top:6px!important}.lead-block .kv{padding:5px 8px}.lead-title{font-size:23px!important}.v13-lastcall{font-size:10px;color:var(--muted2);margin-top:2px}.v13-edit{border:0;background:transparent;color:var(--muted);font-size:12px;padding:2px 5px;cursor:pointer}.v13-value-row{display:flex;align-items:center;gap:4px}.v13-note-preview{font-size:11px;color:var(--muted);padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.035);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{margin-top:7px}.primary-actions{gap:7px}.primary-actions .btn{min-height:62px}.secondary-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important}.secondary-actions .btn{min-height:54px}.secondary-actions #btnNoAnswer{order:1}.secondary-actions #btnCallback{order:2}.secondary-actions #btnNI{order:3}.secondary-actions #btnStateFarm{order:8}.secondary-actions #btnDNC{order:5}.secondary-actions #btnNoEnglish{order:6}.secondary-actions #btnWrongNumber{order:7}.secondary-actions #btnStateFarm,.secondary-actions #btnDNC,.secondary-actions #btnNoEnglish,.secondary-actions #btnWrongNumber{margin-top:4px}.secondary-actions #btnDNC,.secondary-actions #btnNoEnglish,.secondary-actions #btnWrongNumber{font-size:11px;min-height:46px}.secondary-actions #btnStateFarm{width:42px;min-width:42px;height:42px;min-height:42px;border-radius:50%;font-size:27px;justify-self:end;padding:0}.secondary-actions:after{content:'';order:4}.secondary-actions #btnDNC{grid-column:1}.secondary-actions #btnNoEnglish{grid-column:2}.secondary-actions #btnWrongNumber{grid-column:1}.secondary-actions #btnStateFarm{grid-column:2}.card-b#tab-hopper>.hr,.card-b#tab-hopper>.card:last-child{display:none}.v13-overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.38);backdrop-filter:blur(2px);display:flex;align-items:flex-start;padding:calc(66px + env(safe-area-inset-top)) 12px 12px}.v13-overlay.hidden{display:none}.v13-menu{width:min(340px,88vw);border:1px solid var(--stroke2);background:rgba(10,15,29,.72);backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);border-radius:20px;box-shadow:var(--shadow);padding:10px}.v13-menu-title{font-size:12px;color:var(--muted2);font-weight:800;padding:7px 9px}.v13-menu-item{width:100%;border:0;border-radius:13px;background:transparent;color:var(--text);padding:12px;text-align:left;font:inherit;font-weight:750;cursor:pointer}.v13-menu-item:active{background:rgba(255,255,255,.10)}.v13-menu-item.danger{color:#fecaca}.v13-pop{position:fixed;z-index:950;right:14px;bottom:calc(18px + env(safe-area-inset-bottom));width:min(330px,88vw);border:1px solid var(--stroke2);background:rgba(10,15,29,.82);backdrop-filter:blur(22px);border-radius:18px;padding:10px;box-shadow:var(--shadow)}.v13-pop.hidden{display:none}.v13-custom-item{width:100%;margin:4px 0}.v13-callback-banner{border:1px solid rgba(59,130,246,.45);background:rgba(37,99,235,.14);border-radius:11px;padding:7px 9px;font-size:11px;font-weight:850;margin:5px 0}.v13-screen-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}.v13-back{border:1px solid var(--stroke);background:var(--glass2);color:var(--text);border-radius:11px;padding:8px 10px}.v13-settings-grid{display:grid;gap:10px}.v13-settings-grid .card-b{padding:12px}.v13-suppress-row{padding:9px;border-bottom:1px solid var(--stroke);display:flex;justify-content:space-between;gap:8px;align-items:center}.v13-small{font-size:11px;color:var(--muted2)}
+@media(min-width:500px){.secondary-actions{grid-template-columns:repeat(4,minmax(0,1fr))!important}.secondary-actions #btnDNC{grid-column:1}.secondary-actions #btnNoEnglish{grid-column:2}.secondary-actions #btnWrongNumber{grid-column:3}.secondary-actions #btnStateFarm{grid-column:4}.secondary-actions:after{display:none}}
+@media(max-height:720px){.topbar{padding:6px 8px}.lead-title{font-size:20px!important}.lead-block .kv{padding:3px 7px}.primary-actions .btn{min-height:54px}.secondary-actions .btn{min-height:47px}}
+</style>
+<div class="v13-overlay hidden" id="v13MenuOverlay" onclick="v13Backdrop(event)"><div class="v13-menu" onclick="event.stopPropagation()">
+ <div class="v13-menu-title">LEAD HOPPER</div>
+ <button class="v13-menu-item" onclick="v13MenuGo('schedule')">📅 Callbacks & Quotes</button>
+ <button class="v13-menu-item" onclick="v13OpenAddLead()">＋ Add Lead</button>
+ <button class="v13-menu-item" onclick="v13MenuGo('leads')">👥 All Leads</button>
+ <button class="v13-menu-item" onclick="v13OpenCustomMenu(true)">⊕ Custom Buttons</button>
+ <button class="v13-menu-item" onclick="v13OpenSuppression()">🛡 Suppression Manager</button>
+ <button class="v13-menu-item" onclick="v13MenuGo('extras')">📊 Activity & Reports</button>
+ <button class="v13-menu-item" onclick="v13OpenSettings()">⚙️ Settings & Workflow</button>
+ <button class="v13-menu-item" onclick="openImport();v13CloseMenu()">⇩ Import Leads</button>
+ <button class="v13-menu-item" onclick="exportData();v13CloseMenu()">⇧ Backup / Export</button>
+</div></div>
+<div class="v13-pop hidden" id="v13CustomPop"><div class="v13-menu-title">CUSTOM DISPOSITIONS</div><div id="v13CustomList"></div><button class="btn btn-dnc" style="width:100%;margin-top:7px" onclick="v13AddCustomPrompt()">＋ Add Button</button></div>
+<div class="modal hidden" id="v13AddLeadModal"><div class="modal-card"><div class="modal-title">Add Lead</div><div class="modal-sub">This lead will become the next lead in the Hopper.</div><div class="two-col" style="margin-top:10px"><div class="field"><label>First name</label><input id="v13AddFirst"></div><div class="field"><label>Last name</label><input id="v13AddLast"></div></div><div class="field"><label>Phone</label><input id="v13AddPhone"></div><div class="field"><label>Email</label><input id="v13AddEmail"></div><div class="field"><label>Address</label><input id="v13AddAddress"></div><div class="modal-actions"><button class="btn btn-ghost" onclick="v13Close('v13AddLeadModal')">Cancel</button><button class="btn btn-solid" onclick="v13SaveManualLead()">Add Next</button></div></div></div>
+<div class="modal hidden" id="v13SettingsModal"><div class="modal-card"><div class="modal-title">Settings & Workflow</div><div class="v13-settings-grid"><div class="field"><label>Not Interested snooze (days)</label><input id="v13NiDays" type="number" min="1"></div><div class="field"><label>Disposition unlock window (minutes)</label><input id="v13UnlockMins" type="number" min="1"></div><div class="field"><label>Appointment spacing (minutes)</label><input id="v13ApptSpace" type="number" min="0"></div></div><div class="modal-actions"><button class="btn btn-ghost" onclick="v13Close('v13SettingsModal')">Cancel</button><button class="btn btn-solid" onclick="v13SaveSettings()">Save</button></div></div></div>
+<div class="modal hidden" id="v13SuppressionModal"><div class="modal-card"><div class="modal-title">Suppression Manager</div><input id="v13SuppSearch" placeholder="Search name or phone" oninput="v13RenderSuppression()"><div id="v13SuppList" style="max-height:52vh;overflow:auto;margin-top:8px"></div><div class="hr"></div><button class="btn btn-dnc" style="width:100%" onclick="v13ClearSuppression()">⚠ Clear Suppression List</button><div class="modal-actions"><button class="btn btn-ghost" onclick="v13Close('v13SuppressionModal')">Close</button></div></div></div>
+<div class="modal hidden" id="v13CallbackAlert"><div class="modal-card"><div class="danger-title">↩ Scheduled Callback</div><div id="v13CallbackAlertBody" style="margin-top:10px"></div><div class="modal-actions"><button class="btn btn-primary" style="width:100%" onclick="v13AcknowledgeCallback()">Continue to Callback</button></div></div></div>
+<script id="v13Script">
+(function(){
+ const oldLoad=loadAll, oldSaveCallback=saveCallback, oldApply=applyDisposition, oldEligible=eligibleLeads, oldRenderLead=renderLead, oldDoImport=doImport, oldSaveNE=saveNoEnglish;
+ function normName(l){return `${safeText(l.firstName).toLowerCase()}|${safeText(l.lastName).toLowerCase()}`}
+ function exactKey(l){return `${normName(l)}|${cleanPhone(l.phone)}`}
+ function ensureV13(backfill=false){state.schemaVersion=13;state.settings=state.settings||{};if(!(state.settings.notInterestedDays>0))state.settings.notInterestedDays=45;if(!(state.settings.unlockMinutes>0))state.settings.unlockMinutes=30;if(!(state.settings.appointmentSpacingMinutes>=0))state.settings.appointmentSpacingMinutes=120;if(!Array.isArray(state.customButtons))state.customButtons=[];if(!state.suppression)state.suppression={dnc:[],wrongNumbers:[]};if(!Array.isArray(state.suppression.dnc))state.suppression.dnc=[];if(!Array.isArray(state.suppression.wrongNumbers))state.suppression.wrongNumbers=[];if(!Array.isArray(state.priorityLeadIds))state.priorityLeadIds=[];if(backfill)for(const l of state.leads||[]){if(l.disposition==='Do Not Call'&&cleanPhone(l.phone)&&!state.suppression.dnc.some(x=>x.phone===cleanPhone(l.phone)))state.suppression.dnc.push({id:uid(),phone:cleanPhone(l.phone),displayName:`${safeText(l.firstName)} ${safeText(l.lastName)}`.trim(),createdAt:l.updatedAt||nowISO()});if(l.disposition==='Wrong Number'&&cleanPhone(l.phone)&&!state.suppression.wrongNumbers.some(x=>x.key===exactKey(l)))state.suppression.wrongNumbers.push({id:uid(),key:exactKey(l),phone:cleanPhone(l.phone),nameKey:normName(l),displayName:`${safeText(l.firstName)} ${safeText(l.lastName)}`.trim(),createdAt:l.updatedAt||nowISO()})}}
+ loadAll=function(){oldLoad();ensureV13(!state.suppressionMigrated);state.suppressionMigrated=true};ensureV13();
+ function suppressed(l){const p=cleanPhone(l.phone);if(p&&state.suppression.dnc.some(x=>x.phone===p))return true;const k=exactKey(l);if(p&&state.suppression.wrongNumbers.some(x=>x.key===k))return true;return false}
+ eligibleLeads=function(){ensureV13();const base=(state.leads||[]).filter(l=>l.active!==false&&!suppressed(l)&&!isRemoved(l)&&!isSnoozed(l)&&leadDisposition(l)!=='Appointment Set');const now=Date.now();const due=(state.schedule||[]).filter(s=>s.type==='callback'&&!s.done&&new Date(s.when).getTime()<=now).sort((a,b)=>new Date(a.when)-new Date(b.when)||new Date(a.createdAt||0)-new Date(b.createdAt||0)||String(a.id).localeCompare(String(b.id)));const dueIds=due.map(s=>s.leadId).filter(Boolean);const priority=(state.priorityLeadIds||[]).filter(id=>base.some(l=>l.id===id));const rank=new Map([...dueIds,...priority].map((id,i)=>[id,i]));return base.slice().sort((a,b)=>{const ar=rank.has(a.id)?rank.get(a.id):999999,br=rank.has(b.id)?rank.get(b.id):999999;return ar-br})}
+ hasRecentCall=function(lead,minutes){const t=lastCallAt(lead);if(!t)return false;const m=minutes||state.settings.unlockMinutes||30;const diff=Date.now()-t.getTime();return diff>=0&&diff<=m*60000};
+ requireRecentCall=function(lead){if(hasRecentCall(lead))return true;showToast(`🔒 Tap Call Now first (then you have ${state.settings.unlockMinutes} minutes to disposition).`,[],3200);vibrate(18);return false};
+ applyDisposition=function(type){ensureV13();const lead=getCurrentLead();if(!lead)return;if(type==='Not Interested'){const before=state.settings.notInterestedDays||45;const orig=state.settings.notInterestedDays;/* let old function run then correct date */oldApply(type);const d=new Date();d.setDate(d.getDate()+before);lead.nextEligibleAt=d.toISOString();saveAll();renderAll();return}oldApply(type);if(type==='Do Not Call'){const p=cleanPhone(lead.phone);if(p&&!state.suppression.dnc.some(x=>x.phone===p))state.suppression.dnc.push({id:uid(),phone:p,displayName:`${safeText(lead.firstName)} ${safeText(lead.lastName)}`.trim(),createdAt:nowISO()})}if(type==='Wrong Number'){const k=exactKey(lead);if(cleanPhone(lead.phone)&&!state.suppression.wrongNumbers.some(x=>x.key===k))state.suppression.wrongNumbers.push({id:uid(),key:k,phone:cleanPhone(lead.phone),nameKey:normName(lead),displayName:`${safeText(lead.firstName)} ${safeText(lead.lastName)}`.trim(),createdAt:nowISO()})}saveAll()};
+ saveNoEnglish=function(){const sel=document.getElementById('neLang');if(sel&&sel.value==='Other'){const val=prompt('What language?')||'Unknown';sel.value=val}oldSaveNE()};
+ const oldUiNE=uiNoEnglish;uiNoEnglish=function(){oldUiNE();const sel=document.getElementById('neLang');if(sel){sel.innerHTML='<option>Spanish</option><option>Other</option><option>Unknown</option>';sel.value='Spanish'}const notes=document.getElementById('neNotes');if(notes&&notes.parentElement)notes.parentElement.style.display='none'};
+ function latestScheduleNote(l){return (state.schedule||[]).filter(s=>s.leadId===l.id&&safeText(s.notes)).sort((a,b)=>new Date(b.createdAt||b.when)-new Date(a.createdAt||a.when))[0]}
+ renderLead=function(){oldRenderLead();ensureV13();const l=getCurrentLead();if(!l)return;const block=document.getElementById('leadBlock');if(!block)return;const lc=lastCallAt(l);const last=lc?lc.toLocaleString():'Never called';const name=(`${safeText(l.firstName)} ${safeText(l.lastName)}`).trim()||'—';const phone=fmtPhone(l.phone)||'—';const email=safeText(l.email)||'—';const addr=[l.address,l.city,l.state,l.zip].map(safeText).filter(Boolean).join(', ')||'—';const note=latestScheduleNote(l);const due=(state.schedule||[]).filter(s=>s.leadId===l.id&&s.type==='callback'&&!s.done&&new Date(s.when)<=new Date()).sort((a,b)=>new Date(a.when)-new Date(b.when)||new Date(a.createdAt||0)-new Date(b.createdAt||0))[0];block.innerHTML=`${due?`<div class="v13-callback-banner">↩ SCHEDULED CALLBACK · ${escapeHtml(new Date(due.when).toLocaleString())}</div>`:''}<div class="lead-titlebar"><div><div class="lead-title">${escapeHtml(name)} <button class="v13-edit" onclick="v13EditField('name')">✎</button></div><div class="v13-lastcall">Last called: ${escapeHtml(last)}</div></div></div><div class="kv"><div class="k">Phone</div><div class="v v13-value-row">${escapeHtml(phone)} <button class="v13-edit" onclick="v13EditField('phone')">✎</button></div></div><div class="kv"><div class="k">Email</div><div class="v v13-value-row">${escapeHtml(email)} <button class="v13-edit" onclick="v13EditField('email')">✎</button></div></div><div class="kv"><div class="k">Address</div><div class="v v13-value-row">${escapeHtml(addr)} <button class="v13-edit" onclick="v13EditField('address')">✎</button></div></div>${note?`<div class="v13-note-preview">📝 ${escapeHtml(note.notes)}</div>`:''}`;v13MaybeCallbackAlert(l,due)};
+ window.v13EditField=function(field){const l=getCurrentLead();if(!l)return;let old='',val='';if(field==='name'){old=`${safeText(l.firstName)} ${safeText(l.lastName)}`.trim();val=prompt('Edit full name',old);if(val===null)return;const parts=val.trim().split(/\s+/);const first=parts.shift()||'',last=parts.join(' ');if(!confirm(`Save this change?\nName\n${old} → ${val}`))return;l.firstName=first;l.lastName=last}else if(field==='address'){old=[l.address,l.city,l.state,l.zip].filter(Boolean).join(', ');val=prompt('Edit street address',l.address||'');if(val===null)return;if(!confirm(`Save this change?\nAddress\n${old} → ${val}`))return;l.address=val}else{old=safeText(l[field]);val=prompt(`Edit ${field}`,old);if(val===null)return;if(!confirm(`Save this change?\n${field}\n${old} → ${val}`))return;l[field]=field==='phone'?cleanPhone(val):val}l.history=l.history||[];l.history.unshift({t:nowISO(),action:'edit-field',field,from:old,to:val});addActivity({leadId:l.id,type:'Edit',detail:`${field}: ${old} → ${val}`});saveAll();renderAll()};
+ window.v13OpenMenu=()=>document.getElementById('v13MenuOverlay').classList.remove('hidden');window.v13CloseMenu=()=>document.getElementById('v13MenuOverlay').classList.add('hidden');window.v13Backdrop=e=>{if(e.target.id==='v13MenuOverlay')v13CloseMenu()};window.v13MenuGo=t=>{v13CloseMenu();setTab(t);window.scrollTo(0,0)};window.v13Close=id=>document.getElementById(id).classList.add('hidden');
+ window.v13OpenCustomMenu=function(fromMenu){if(fromMenu)v13CloseMenu();v13RenderCustom();document.getElementById('v13CustomPop').classList.remove('hidden')};window.v13RenderCustom=function(){const el=document.getElementById('v13CustomList');el.innerHTML=(state.customButtons||[]).filter(x=>x.enabled!==false).map(x=>`<button class="btn btn-solid v13-custom-item" onclick="v13UseCustom('${x.id}')">${escapeHtml(x.label)}</button>`).join('')||'<div class="v13-small" style="padding:8px">No custom dispositions yet.</div>'};window.v13UseCustom=id=>{const b=state.customButtons.find(x=>x.id===id);if(!b)return;document.getElementById('v13CustomPop').classList.add('hidden');const l=getCurrentLead();if(!l||!requireRecentCall(l))return;snapshot('custom');l.disposition=b.label;if(b.snoozeDays>0){const d=new Date();d.setDate(d.getDate()+b.snoozeDays);l.nextEligibleAt=d.toISOString()}else l.nextEligibleAt=null;l.history=l.history||[];l.history.unshift({t:nowISO(),action:'disposition',value:b.label,customId:b.id});addActivity({leadId:l.id,type:'Disposition',detail:b.label});stopCallTimer();state.holdLeadId=l.id;markAdvanceReady(l,b.label);saveAll();renderAll();showToast(`Saved: ${b.label}`,[],1800)};window.v13AddCustomPrompt=function(){const label=prompt('New disposition button name');if(!safeText(label))return;const daysRaw=prompt('Snooze for how many days? Enter 0 for no snooze.','0');if(daysRaw===null)return;const days=Math.max(0,parseInt(daysRaw,10)||0);showDangerConfirm({title:'⚠️ Add New Disposition?',textHtml:`Add <b>${escapeHtml(label)}</b>${days?` with a ${days}-day snooze`:''}?`,confirmLabel:'Add Button',onConfirm:()=>{state.customButtons.push({id:uid(),label:safeText(label),snoozeDays:days,enabled:true,createdAt:nowISO()});saveAll();v13RenderCustom();showToast('Custom button added.',[],1500)}})};
+ window.v13OpenAddLead=function(){v13CloseMenu();['v13AddFirst','v13AddLast','v13AddPhone','v13AddEmail','v13AddAddress'].forEach(id=>document.getElementById(id).value='');document.getElementById('v13AddLeadModal').classList.remove('hidden')};window.v13SaveManualLead=function(){const l=normalizeLead({firstName:document.getElementById('v13AddFirst').value,lastName:document.getElementById('v13AddLast').value,phone:document.getElementById('v13AddPhone').value,email:document.getElementById('v13AddEmail').value,address:document.getElementById('v13AddAddress').value});if(!l.firstName&&!l.lastName&&!l.phone){showToast('Add at least a name or phone.',[],1800);return}state.leads.push(l);state.priorityLeadIds=state.priorityLeadIds||[];state.priorityLeadIds.unshift(l.id);addActivity({leadId:l.id,type:'Lead Added',detail:'Manual referral; priority next'});saveAll();v13Close('v13AddLeadModal');renderAll();showToast('Lead added. It is next in queue.',[],2000)};
+ window.v13OpenSettings=function(){v13CloseMenu();ensureV13();document.getElementById('v13NiDays').value=state.settings.notInterestedDays;document.getElementById('v13UnlockMins').value=state.settings.unlockMinutes;document.getElementById('v13ApptSpace').value=state.settings.appointmentSpacingMinutes;document.getElementById('v13SettingsModal').classList.remove('hidden')};window.v13SaveSettings=function(){state.settings.notInterestedDays=Math.max(1,+document.getElementById('v13NiDays').value||45);state.settings.unlockMinutes=Math.max(1,+document.getElementById('v13UnlockMins').value||30);state.settings.appointmentSpacingMinutes=Math.max(0,+document.getElementById('v13ApptSpace').value||120);saveAll();v13Close('v13SettingsModal');renderAll();showToast('Workflow settings saved.',[],1500)};
+ window.v13OpenSuppression=function(){v13CloseMenu();document.getElementById('v13SuppSearch').value='';v13RenderSuppression();document.getElementById('v13SuppressionModal').classList.remove('hidden')};window.v13RenderSuppression=function(){ensureV13();const q=safeText(document.getElementById('v13SuppSearch').value).toLowerCase();const rows=[...state.suppression.dnc.map(x=>({...x,type:'DNC'})),...state.suppression.wrongNumbers.map(x=>({...x,type:'Wrong Number'}))].filter(x=>`${x.displayName} ${x.phone}`.toLowerCase().includes(q));document.getElementById('v13SuppList').innerHTML=rows.map(x=>`<div class="v13-suppress-row"><div><b>${escapeHtml(x.type)}</b><div>${escapeHtml(x.displayName||'—')} · ${escapeHtml(fmtPhone(x.phone))}</div><div class="v13-small">${escapeHtml(new Date(x.createdAt).toLocaleString())}</div></div><button class="btn btn-ghost btn-mini" onclick="v13Unblock('${x.type}','${x.id}')">Unblock</button></div>`).join('')||'<div class="v13-small" style="padding:12px">No matching suppression records.</div>'};window.v13Unblock=function(type,id){const isD=type==='DNC';showDangerConfirm({title:isD?'Remove Do Not Call block?':'Remove Wrong Number block?',textHtml:isD?'This phone number will become callable again, including from future imports.':'This exact name + phone pair will become callable again.',confirmLabel:'Unblock',onConfirm:()=>{const arr=isD?state.suppression.dnc:state.suppression.wrongNumbers;const x=arr.find(y=>y.id===id);if(!x)return;arr.splice(arr.indexOf(x),1);for(const l of state.leads){if((isD?cleanPhone(l.phone)===x.phone:exactKey(l)===x.key)&&l.disposition===(isD?'Do Not Call':'Wrong Number')){l.disposition='New';l.nextEligibleAt=null;}}addActivity({type:'Suppression Override',detail:`${type} removed: ${x.displayName||''} ${x.phone}`});saveAll();v13RenderSuppression()}})};window.v13ClearSuppression=function(){showDangerConfirm({title:'⚠️ CLEAR ALL SUPPRESSION?',textHtml:'This will remove <b>every Do Not Call and Wrong Number protection</b>. Previously blocked leads may become callable again after import or editing.',confirmLabel:'CLEAR ALL BLOCKS',onConfirm:()=>{for(const l of state.leads){if(l.disposition==='Do Not Call'||l.disposition==='Wrong Number'){l.disposition='New';l.nextEligibleAt=null;}}state.suppression={dnc:[],wrongNumbers:[]};addActivity({type:'Danger Zone',detail:'All suppression records cleared manually'});saveAll();v13RenderSuppression()}})};
+ const oldSaveCb=oldSaveCallback;saveCallback=function(){oldSaveCb();const newest=(state.schedule||[]).filter(s=>s.type==='callback').sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];if(newest&&newest.leadId){const l=state.leads.find(x=>x.id===newest.leadId);if(l){l.history=l.history||[];l.history.unshift({t:newest.createdAt||nowISO(),action:'callback-note',value:newest.when,notes:newest.notes||''});saveAll()}}};
+ window.v13MaybeCallbackAlert=function(l,due){if(!due||state.callbackAcknowledgedId===due.id)return;const m=document.getElementById('v13CallbackAlert');if(!m.classList.contains('hidden'))return;const late=Math.max(0,Math.floor((Date.now()-new Date(due.when))/60000));document.getElementById('v13CallbackAlertBody').innerHTML=`<b>${escapeHtml(due.name||`${l.firstName} ${l.lastName}`)}</b><br>Scheduled: ${escapeHtml(new Date(due.when).toLocaleString())}${late?`<br><span class="badge orange">${late} min overdue</span>`:''}${due.notes?`<div class="v13-note-preview">${escapeHtml(due.notes)}</div>`:''}`;m.classList.remove('hidden')};window.v13AcknowledgeCallback=function(){const l=getCurrentLead();const due=(state.schedule||[]).filter(s=>s.leadId===l?.id&&s.type==='callback'&&!s.done&&new Date(s.when)<=new Date()).sort((a,b)=>new Date(a.when)-new Date(b.when)||new Date(a.createdAt||0)-new Date(b.createdAt||0))[0];if(due)state.callbackAcknowledgedId=due.id;saveAll();v13Close('v13CallbackAlert')};
+ // Replace import with exact normalized name+phone merge and multi-value email/address preservation.
+ doImport=function(){const fmt=document.getElementById('importFormat').value,mode=(document.getElementById('importMode')||{}).value||'merge',txt=document.getElementById('importText').value.trim();if(!txt){showToast('Paste data first.',[],1800);return}try{let incoming=fmt==='json'?JSON.parse(txt).map(normalizeLead):parseCSV(txt).map(normalizeLead);const merged=new Map();for(const l of incoming){const k=exactKey(l);if(k==='||'){merged.set(uid(),l);continue}if(!merged.has(k)){merged.set(k,l);continue}const a=merged.get(k);for(const f of ['email','address']){const vals=[...new Set([...(safeText(a[f]).split(' | ').filter(Boolean)),...(safeText(l[f]).split(' | ').filter(Boolean))])];a[f]=vals.join(' | ')}}incoming=[...merged.values()];snapshot('import-v13');const byKey=new Map((state.leads||[]).map(l=>[exactKey(l),l]));if(mode==='replace'){if(!confirm('Replace the active list? Existing history and schedules will be preserved.'))return;state.leads.forEach(l=>l.active=false)}for(const l of incoming){const k=exactKey(l);if(k!=='||'&&byKey.has(k)){const a=byKey.get(k);a.active=true;for(const f of ['email','address','city','state','zip','notes']){if(!safeText(a[f]))a[f]=l[f]}}else{l.active=true;state.leads.push(l);byKey.set(k,l)}}if(mode==='replace'){state.currentIndex=0;state.cursorLeadId=null;state.holdLeadId=null;state.overrideLeadId=null;resetAdvance();syncCursor()}saveAll();closeImport();renderAll();showToast(`${mode==='merge'?'Merged':'Imported'} ${incoming.length} rows; ${state.leads.length} total leads.`,[],2600)}catch(e){showToast('Import failed: '+e.message,[],5000)}};
+ // Hamburger replaces old home; secondary screens keep state and can return via menu.
+ document.querySelectorAll('.top-actions button').forEach(b=>b.style.display='none');
+ ensureV13();setTab(state.activeTab||'hopper',false);renderAll();
+})();
+</script>
+
+</body>
+</html>

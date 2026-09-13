@@ -109,3 +109,78 @@
   }
 })();
 </script>
+<style id="v19BridgeLayout">
+.modal{padding:12px!important;align-items:flex-start!important;overflow:auto!important}
+.modal-card{max-height:calc(100dvh - 24px)!important;max-height:calc(100vh - 24px);overflow:auto!important;margin:auto!important;box-sizing:border-box}
+body:has(.modal:not(.hidden)) .actions{visibility:hidden!important}
+#v13SettingsModal .modal-card{min-height:0!important}
+</style>
+<script id="v19BridgeCommands">
+(function(){
+  // The legacy bridge groups nested saves until the entire command has succeeded.
+  // Native 2.0 replaces this adapter with Room transactions.
+  window.v19AfterCommit=function(fn){if(window.__LH_TRANSACTION__)window.__LH_TRANSACTION__.effects.push(fn);else fn();};
+  window.v19Transaction=function(fn){
+    if(window.__LH_TRANSACTION__)return fn();
+    if(!window.__LH_STORAGE_READY__)return false;
+    var before=JSON.stringify(state),snapshotBefore=lastSnapshot,tx={dirty:false,effects:[]};
+    var toast=showToast,render=renderAll,timeout=window.setTimeout;
+    window.__LH_TRANSACTION__=tx;
+    showToast=function(){var args=arguments;tx.effects.push(function(){toast.apply(window,args);});};
+    renderAll=function(){tx.render=true;};
+    window.setTimeout=function(fn,ms){var args=Array.prototype.slice.call(arguments,2);tx.effects.push(function(){timeout.apply(window,[fn,ms].concat(args));});return 0;};
+    try{
+      var result=fn();window.__LH_TRANSACTION__=null;
+      showToast=toast;renderAll=render;window.setTimeout=timeout;
+      if(tx.dirty)saveAll();
+      if(tx.render)render();
+      tx.effects.forEach(function(effect){effect();});return result;
+    }catch(err){
+      window.__LH_TRANSACTION__=null;showToast=toast;renderAll=render;window.setTimeout=timeout;
+      state=JSON.parse(before);lastSnapshot=snapshotBefore;actionLock=false;
+      render();toast('Change failed. Your previous saved state is intact.',[],7000);return false;
+    }
+  };
+  ['uiCallNow','applyDisposition','saveCallback','saveAppointment','saveNoEnglish','saveScheduleAdd','saveEditLead','nextLead','prevLead','v13UseCustom','v13SaveManualLead','v13SaveSettings','doImport','endSession','restoreSnapshot'].forEach(function(name){
+    var fn=window[name];if(typeof fn!=='function')return;
+    window[name]=function(){var self=this,args=arguments;return v19Transaction(function(){return fn.apply(self,args);});};
+  });
+  var danger=showDangerConfirm;
+  showDangerConfirm=function(options){var callback=options.onConfirm;if(callback)options.onConfirm=function(){return v19Transaction(callback);};return danger(options);};
+  var callGate=requireRecentCall;
+  requireRecentCall=function(lead){
+    if(!lead)return false;
+    if(lead.lastDispositionCall && lastCallAt(lead) && lead.lastDispositionCall===lastCallAt(lead).toISOString()){
+      showToast('This call already has an outcome. Use Undo or Edit to correct it.',[],3000);return false;
+    }
+    return callGate(lead);
+  };
+  // Captured form identity prevents a stale dialog from changing a new current person.
+  ['Callback','Appt'].forEach(function(kind){var name='open'+kind+'ModalFromLead',open=window[name];window[name]=function(lead){state.pendingFormLeadId=lead.id;return open(lead);};});
+  ['saveCallback','saveAppointment'].forEach(function(name){var save=window[name];window[name]=function(){var lead=getCurrentLead();if(state.pendingFormLeadId&&(!lead||lead.id!==state.pendingFormLeadId)){showToast('This form belongs to a different lead. Reopen it.',[],3000);return false;}return save();};});
+  var mark=markAdvanceReady;
+  markAdvanceReady=function(lead,disp){mark(lead,disp);if(lastCallAt(lead))lead.lastDispositionCall=lastCallAt(lead).toISOString();};
+  var download=downloadText;
+  downloadText=window.downloadText=function(filename,text,mime,sessionId){
+    if(window.AndroidBridge&&AndroidBridge.saveTextWithId){
+      var id=uid();state.pendingExports=state.pendingExports||{};state.pendingExports[id]={sessionId:sessionId||null};saveAll();
+      AndroidBridge.saveTextWithId(id,filename,String(text),mime||'text/plain');return id;
+    }
+    return download(filename,text,mime);
+  };
+  window.v19ExportResult=function(id,status){
+    var pending=state.pendingExports&&state.pendingExports[id];if(!pending)return;
+    v19Transaction(function(){if(status==='saved'&&pending.sessionId){var session=(state.sessions||[]).find(function(s){return s.id===pending.sessionId;});if(session)session.exportedAt=nowISO();}delete state.pendingExports[id];saveAll();});
+  };
+  window.v19HandleBack=function(){
+    var visible=Array.prototype.slice.call(document.querySelectorAll('.modal:not(.hidden),#v13MenuOverlay:not(.hidden),#v13CustomPop:not(.hidden)')).filter(function(x){return getComputedStyle(x).display!=='none';});
+    if(visible.length){var top=visible[visible.length-1];top.classList.add('hidden');top.style.display='';return true;}
+    if(state.activeTab!=='hopper'){setTab('hopper');return true;}return false;
+  };
+  document.addEventListener('click',function(e){var b=e.target.closest('.js-open-person');if(b)jumpToLead(b.dataset.person);});
+  // Remove malformed orphan action rows; these have no edit form parent.
+  document.querySelectorAll('body > .modal-actions').forEach(function(x){x.remove();});
+  var menu=document.querySelector('#v13MenuOverlay .v13-menu');
+  if(menu){var end=document.createElement('button');end.className='v13-menu-item';end.textContent='End Session';end.onclick=function(){v13CloseMenu();endSession();};menu.appendChild(end);}
+})();
+</script>

@@ -30,6 +30,9 @@ PATCHES = [
 
 
 def restore_base() -> str:
+    canonical = ASSETS / "bridge_base.html"
+    if canonical.exists():
+        return canonical.read_text(encoding="utf-8")
     parts = sorted(ASSETS.glob("index.html.gz.b64.part*"))
     if not parts:
         raise RuntimeError("No compressed V13 base parts found")

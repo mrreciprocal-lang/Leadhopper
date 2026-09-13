@@ -2,127 +2,109 @@
 (function(){
   if(window.__LH_V19_DATA_SURVIVAL__) return;
   window.__LH_V19_DATA_SURVIVAL__ = true;
-  var hydrated = false;
-  var lastDurableRaw = null;
-  var blockedPreloadSaves = 0;
-  var priorLoadAll = loadAll;
-
-  loadAll = function(){
-    var raw = null;
-    try { raw = localStorage.getItem(STORE_KEY); } catch(_e) {}
-    priorLoadAll();
-    hydrated = true;
-    if(raw){
-      try { JSON.parse(raw); lastDurableRaw = raw; } catch(_e2) { lastDurableRaw = null; }
+  window.__LH_PAGE_GENERATION__ = uid();
+  var hydrated=false, lastDurableRaw=null, blockedPreloadSaves=0;
+  var priorLoadAll=loadAll;
+  function validate(candidate, strict){
+    if(!candidate || typeof candidate!=='object' || Array.isArray(candidate)) throw new Error('State must be an object.');
+    ['leads','schedule','callLog','activityLog'].forEach(function(k){if(!Array.isArray(candidate[k])) throw new Error('Missing '+k);});
+    if(candidate.schemaVersion != null && candidate.schemaVersion!==13) throw new Error('Unsupported state schema.');
+    var ids=new Set();
+    candidate.leads.forEach(function(l){
+      if(!l || typeof l.id!=='string' || !/^[a-zA-Z0-9_-]+$/.test(l.id) || ids.has(l.id)) throw new Error('Unsafe or duplicate lead ID.');
+      ids.add(l.id);
+      ['firstName','lastName','phone','email','address','city','state','zip','notes','disposition'].forEach(function(k){if(l[k]!=null&&typeof l[k]!=='string')throw new Error('Invalid lead '+k);});
+      if(l.nextEligibleAt!=null&&!Number.isFinite(Date.parse(l.nextEligibleAt)))throw new Error('Invalid eligibility time.');
+      ['calls','history'].forEach(function(k){if(l[k]!=null&&!Array.isArray(l[k]))throw new Error('Invalid '+k);});
+    });
+    ['schedule','callLog','activityLog'].forEach(function(k){
+      var seen=new Set();
+      candidate[k].forEach(function(x){
+        if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('Invalid '+k+' record.');
+        if(x.id!=null){if(typeof x.id!=='string'||!/^[a-zA-Z0-9_-]+$/.test(x.id)||seen.has(x.id))throw new Error('Unsafe or duplicate '+k+' ID.');seen.add(x.id);}
+        if(strict && x.leadId!=null&&!ids.has(x.leadId))throw new Error('Unresolved '+k+' lead.');
+        var time=k==='schedule'?x.when:x.t;
+        if(!Number.isFinite(Date.parse(time)))throw new Error('Invalid '+k+' timestamp.');
+        if(k==='schedule'&&['callback','appointment'].indexOf(x.type)<0)throw new Error('Invalid schedule type.');
+      });
+    });
+    ['cursorLeadId','holdLeadId','overrideLeadId'].forEach(function(k){if(strict&&candidate[k]!=null&&!ids.has(candidate[k]))throw new Error('Unresolved '+k);});
+    ['prevStack','priorityLeadIds'].forEach(function(k){if(candidate[k]!=null&&(!Array.isArray(candidate[k])||candidate[k].some(function(id){return typeof id!=='string'||(strict&&!ids.has(id));})))throw new Error('Invalid '+k);});
+    if(candidate.activeTab!=null&&['hopper','leads','schedule','extras'].indexOf(candidate.activeTab)<0)throw new Error('Invalid screen.');
+    if(candidate.suppression!=null){
+      ['dnc','wrongNumbers'].forEach(function(k){
+        if(!Array.isArray(candidate.suppression[k]))throw new Error('Invalid suppression.');
+        candidate.suppression[k].forEach(function(x){if(!x||typeof x.phone!=='string'||typeof x.id!=='string'||!/^[a-zA-Z0-9_-]+$/.test(x.id))throw new Error('Invalid suppression record.');});
+      });
     }
-    if(!lastDurableRaw){
-      try { lastDurableRaw = JSON.stringify(state); } catch(_e3) { lastDurableRaw = null; }
-    }
-    window.__LH_STORAGE_READY__ = true;
-    return true;
-  };
-
-  saveAll = function(){
-    if(!hydrated){
-      blockedPreloadSaves += 1;
-      window.__LH_BLOCKED_PRELOAD_SAVE_COUNT__ = blockedPreloadSaves;
-      return false;
-    }
-    try {
-      state.lastActiveAt = nowISO();
-      var candidate = JSON.stringify(state);
-      localStorage.setItem(STORE_KEY, candidate);
-      lastDurableRaw = candidate;
-      window.__LH_LAST_SAVE_OK__ = true;
-      return true;
-    } catch(err) {
-      window.__LH_LAST_SAVE_OK__ = false;
-      window.__LH_LAST_SAVE_ERROR__ = String(err && err.message ? err.message : err);
-      if(lastDurableRaw){
-        try { state = JSON.parse(lastDurableRaw); } catch(_restoreErr) {}
-      }
-      setTimeout(function(){
-        try { renderAll(); } catch(_renderErr) {}
-        try { showToast('Could not save this change. The last safely saved state was restored.', [], 7000); } catch(_toastErr) {}
-      }, 0);
-      return false;
-    }
-  };
-
-  window.v19GetPersistenceStatus = function(){
-    return {
-      hydrated: hydrated,
-      blockedPreloadSaves: blockedPreloadSaves,
-      hasSnapshot: !!lastDurableRaw,
-      lastSaveOk: window.__LH_LAST_SAVE_OK__ !== false,
-      lastSaveError: window.__LH_LAST_SAVE_ERROR__ || null
-    };
-  };
-
-  function validateBackupState(candidate){
-    if(!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new Error('Backup state is not an object.');
-    if(!Array.isArray(candidate.leads)) throw new Error('Backup is missing leads.');
-    if(!Array.isArray(candidate.schedule)) throw new Error('Backup is missing schedule data.');
-    if(!Array.isArray(candidate.callLog)) throw new Error('Backup is missing call history.');
-    if(!Array.isArray(candidate.activityLog)) throw new Error('Backup is missing activity history.');
+    if(candidate.customButtons!=null){if(!Array.isArray(candidate.customButtons))throw new Error('Invalid custom actions.');candidate.customButtons.forEach(function(x){if(!x||typeof x.id!=='string'||!/^[a-zA-Z0-9_-]+$/.test(x.id)||typeof x.label!=='string'||!Number.isFinite(x.snoozeDays)||x.snoozeDays<0)throw new Error('Invalid custom action.');});}
+    if(candidate.settings!=null){if(typeof candidate.settings!=='object'||Array.isArray(candidate.settings))throw new Error('Invalid settings.');['notInterestedDays','unlockMinutes','appointmentSpacingMinutes','cphGoal'].forEach(function(k){if(candidate.settings[k]!=null&&(!Number.isFinite(candidate.settings[k])||candidate.settings[k]<0))throw new Error('Invalid setting '+k);});}
     return candidate;
   }
-
-  window.v19BuildBackupEnvelope = function(){
-    return {
-      format: 'lead-hopper-full-backup',
-      backupVersion: 1,
-      exportedAt: nowISO(),
-      schemaVersion: state && state.schemaVersion ? state.schemaVersion : null,
-      state: JSON.parse(JSON.stringify(state))
-    };
-  };
-
-  window.v19ParseBackupText = function(text){
-    var parsed = JSON.parse(String(text || ''));
-    var candidate = null;
-    if(parsed && parsed.format === 'lead-hopper-full-backup' && parsed.state){
-      candidate = parsed.state;
-    } else if(parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.leads)){
-      candidate = parsed;
-    } else {
-      throw new Error('This is not a Lead Hopper full backup.');
+  window.v19ValidateState=validate;
+  function failClosed(err){
+    hydrated=false;window.__LH_STORAGE_READY__=false;window.__LH_RECOVERY_REQUIRED__=true;
+    function showRecovery(){
+      var box=document.createElement('div');box.id='v19Recovery';box.style.cssText='position:fixed;inset:0;z-index:999999;background:#101827;color:white;padding:32px;overflow:auto';
+      var title=document.createElement('h2');title.textContent='Your saved data needs recovery';box.appendChild(title);
+      var msg=document.createElement('p');msg.textContent='Lead Hopper has stopped changes to protect your existing data. '+err.message;box.appendChild(msg);
+      var input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=function(){var f=input.files[0];if(!f)return;f.text().then(function(t){v19ParseBackupText(t);if(confirm('Replace saved state with this validated backup?'))v19ApplyBackupText(t,true);}).catch(function(e){msg.textContent=e.message;});};box.appendChild(input);document.body.appendChild(box);
     }
-    validateBackupState(candidate);
-    return JSON.parse(JSON.stringify(candidate));
-  };
-
-  window.v19ApplyBackupText = function(text, reloadAfter){
-    var restored = window.v19ParseBackupText(text);
-    var raw = JSON.stringify(restored);
-    localStorage.setItem(STORE_KEY, raw);
-    lastDurableRaw = raw;
-    if(reloadAfter === false){
-      state = JSON.parse(raw);
-      hydrated = true;
-      window.__LH_STORAGE_READY__ = true;
-      try { renderAll(); } catch(_e) {}
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showRecovery);else showRecovery();
+  }
+  loadAll=function(){
+    try {
+      var raw=localStorage.getItem(STORE_KEY);
+      if(window.AndroidBridge&&AndroidBridge.recoverSnapshot){var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));if(!recovered.ok)throw new Error('Native snapshot could not be read.');if(raw==null&&recovered.state){raw=recovered.state;localStorage.setItem(STORE_KEY,raw);}}
+      if(raw)validate(JSON.parse(raw),false);
+      priorLoadAll(); hydrated=true;
+      lastDurableRaw=raw||JSON.stringify(state);
+      window.__LH_STORAGE_READY__=true;
       return true;
+    }catch(err){failClosed(err);throw err;}
+  };
+  function writeRaw(raw){
+    var old=localStorage.getItem(STORE_KEY),generation=null;
+    if(window.AndroidBridge&&AndroidBridge.stageSnapshot){generation=AndroidBridge.stageSnapshot(raw);if(generation<0)throw new Error('Native snapshot write failed.');}
+    try {
+      localStorage.setItem(STORE_KEY,raw);
+      if(generation!=null&&!AndroidBridge.commitSnapshot(generation))throw new Error('Native snapshot commit failed.');
+    }catch(err){
+      // If local write succeeded but journal commit failed, restore the previous local generation.
+      if(localStorage.getItem(STORE_KEY)!==old){if(old==null)localStorage.removeItem(STORE_KEY);else localStorage.setItem(STORE_KEY,old);}
+      if(generation!=null)AndroidBridge.recoverSnapshot(old);
+      throw err;
     }
-    location.reload();
+    lastDurableRaw=raw;
+  }
+  saveAll=function(){
+    if(!hydrated){blockedPreloadSaves++;window.__LH_BLOCKED_PRELOAD_SAVE_COUNT__=blockedPreloadSaves;return false;}
+    if(window.__LH_TRANSACTION__){window.__LH_TRANSACTION__.dirty=true;return true;}
+    try {
+      state.lastActiveAt=nowISO();validate(state,false);writeRaw(JSON.stringify(state));window.__LH_LAST_SAVE_OK__=true;return true;
+    }catch(err){
+      window.__LH_LAST_SAVE_OK__=false;window.__LH_LAST_SAVE_ERROR__=err.message;
+      if(lastDurableRaw)state=JSON.parse(lastDurableRaw);
+      setTimeout(function(){try{renderAll();showToast('Change was not saved. Your previous saved state is intact.',[],7000);}catch(e){}},0);
+      throw err;
+    }
+  };
+  window.v19GetPersistenceStatus=function(){return {hydrated:hydrated,blockedPreloadSaves:blockedPreloadSaves,hasSnapshot:!!lastDurableRaw,lastSaveOk:window.__LH_LAST_SAVE_OK__!==false,lastSaveError:window.__LH_LAST_SAVE_ERROR__||null};};
+  window.v19BuildBackupEnvelope=function(){return {format:'lead-hopper-full-backup',backupVersion:1,exportedAt:nowISO(),schemaVersion:13,state:JSON.parse(JSON.stringify(state))};};
+  window.v19ParseBackupText=function(text){
+    var parsed=JSON.parse(String(text||'')),candidate=parsed;
+    if(parsed&&parsed.format!=null){if(parsed.format!=='lead-hopper-full-backup'||parsed.backupVersion!==1||parsed.schemaVersion!==13)throw new Error('Unsupported backup version.');candidate=parsed.state;}
+    validate(candidate,true);return JSON.parse(JSON.stringify(candidate));
+  };
+  window.v19ApplyBackupText=function(text,reloadAfter){
+    var restored=v19ParseBackupText(text),raw=JSON.stringify(restored);writeRaw(raw);
+    state=restored;hydrated=true;window.__LH_STORAGE_READY__=true;
+    if(reloadAfter!==false)location.reload();
     return true;
   };
-
-  exportData = window.exportData = function(){
-    if(saveAll() === false){
-      try { showToast('Backup stopped because current state could not be saved safely.', [], 5000); } catch(_e) {}
-      return false;
-    }
-    try {
-      var envelope = window.v19BuildBackupEnvelope();
-      var stamp = new Date().toISOString().replace(/[:.]/g,'-');
-      downloadText('lead-hopper-full-backup-' + stamp + '.json', JSON.stringify(envelope, null, 2), 'application/json');
-      showToast('Full Lead Hopper backup ready to save.', [], 2200);
-      return true;
-    } catch(err){
-      showToast('Backup failed: ' + (err && err.message ? err.message : err), [], 5000);
-      return false;
-    }
+  exportData=window.exportData=function(){
+    if(saveAll()===false)return false;
+    var envelope=v19BuildBackupEnvelope();downloadText('lead-hopper-full-backup-'+Date.now()+'.json',JSON.stringify(envelope,null,2),'application/json');return true;
   };
 })();
 </script>

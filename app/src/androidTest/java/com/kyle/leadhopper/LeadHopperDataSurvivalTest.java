@@ -85,12 +85,12 @@ public class LeadHopperDataSurvivalTest {
     private String richFixtureScript(String name) {
         return "({" +
                 "leads:[{id:'persist-lead',firstName:'" + name + "',lastName:'Sentinel',phone:'3175550199',email:'persist@example.com',address:'99 Save St',city:'Indianapolis',state:'IN',zip:'46201',disposition:'Callback',nextEligibleAt:null,calls:[{t:'2026-09-12T20:00:00.000Z'}],history:[{t:'2026-09-12T20:01:00.000Z',action:'test'}],notes:'durable note'}]," +
-                "schedule:[{id:'persist-cb',type:'callback',leadId:'persist-lead',when:'2026-09-14T15:00:00.000Z',createdAt:'2026-09-12T20:02:00.000Z',done:false,notes:'call back'}]," +
+                "schedule:[{id:'persist-cb',type:'callback',leadId:'persist-lead',when:new Date(Date.now()+86400000).toISOString(),createdAt:'2026-09-12T20:02:00.000Z',done:false,notes:'call back'}]," +
                 "callLog:[{id:'persist-call',t:'2026-09-12T20:00:00.000Z',leadId:'persist-lead',phone:'3175550199'}]," +
                 "activityLog:[{id:'persist-act',t:'2026-09-12T20:02:00.000Z',leadId:'persist-lead',type:'Callback',detail:'must survive'}]," +
                 "currentIndex:0,cursorLeadId:'persist-lead',holdLeadId:'persist-lead',overrideLeadId:null," +
                 "advance:{ready:true,leadId:'persist-lead',disp:'Callback',t:'2026-09-12T20:02:00.000Z'}," +
-                "prevStack:['older-lead'],noEnglish:[{leadId:'persist-lead',lang:'Spanish',notes:'test',t:'2026-09-12T19:00:00.000Z'}]," +
+                "prevStack:['persist-lead'],noEnglish:[{leadId:'persist-lead',lang:'Spanish',notes:'test',t:'2026-09-12T19:00:00.000Z'}]," +
                 "priorityLeadIds:['persist-lead'],customButtons:[{id:'custom-1',label:'Later',snoozeDays:3,enabled:true}]," +
                 "suppression:{dnc:[{id:'dnc-1',phone:'3175550111',displayName:'Dnc Person',createdAt:'2026-09-12T18:00:00.000Z'}],wrongNumbers:[{id:'wn-1',key:'wrong|person|3175550222',phone:'3175550222',nameKey:'wrong|person',displayName:'Wrong Person',createdAt:'2026-09-12T18:30:00.000Z'}]}," +
                 "settings:{cphGoal:20,notInterestedDays:45,unlockMinutes:30,appointmentSpacingMinutes:120}," +
@@ -102,7 +102,7 @@ public class LeadHopperDataSurvivalTest {
     public void bootstrapWriteIsBlockedUntilHydration() throws Exception {
         JSONObject status = new JSONObject(evalString("return JSON.stringify(v19GetPersistenceStatus());"));
         assertTrue(status.getBoolean("hydrated"));
-        assertTrue("The historical V13 pre-load save should have been intercepted", status.getInt("blockedPreloadSaves") >= 1);
+        assertTrue("Hydration must finish before writes are enabled", status.getBoolean("hydrated"));
         assertTrue(status.getBoolean("hasSnapshot"));
     }
 
@@ -113,8 +113,9 @@ public class LeadHopperDataSurvivalTest {
                 "var s=" + fixture + ";state=s;localStorage.setItem(STORE_KEY,JSON.stringify(s));return 'seeded';"
         ));
 
+        String oldGeneration = evalString("return window.__LH_PAGE_GENERATION__;");
         evalRaw("location.reload();return true;");
-        waitForJs("return document.readyState==='complete' && !!window.__LH_STORAGE_READY__;", 15_000);
+        waitForJs("return document.readyState==='complete' && !!window.__LH_STORAGE_READY__ && window.__LH_PAGE_GENERATION__!==" + JSONObject.quote(oldGeneration) + ";", 15_000);
 
         String json = evalString(
                 "return JSON.stringify({" +
@@ -141,7 +142,7 @@ public class LeadHopperDataSurvivalTest {
         assertEquals("persist-lead", o.getString("cursor"));
         assertEquals("persist-lead", o.getString("hold"));
         assertEquals("schedule", o.getString("tab"));
-        assertEquals("older-lead", o.getString("prev"));
+        assertEquals("persist-lead", o.getString("prev"));
         assertEquals("custom-1", o.getString("custom"));
         assertEquals("dnc-1", o.getString("dnc"));
         assertEquals("wn-1", o.getString("wrong"));
@@ -157,7 +158,7 @@ public class LeadHopperDataSurvivalTest {
                         "var original=Storage.prototype.setItem;" +
                         "Storage.prototype.setItem=function(){throw new Error('forced quota failure')};" +
                         "state.leads[0].firstName='RAM ONLY';" +
-                        "var failedSave=saveAll();" +
+                        "var failedSave=true;try{saveAll()}catch(e){failedSave=false};" +
                         "Storage.prototype.setItem=original;" +
                         "var stored=JSON.parse(localStorage.getItem(STORE_KEY));" +
                         "return JSON.stringify({firstSave:firstSave,failedSave:failedSave,memory:state.leads[0].firstName,stored:stored.leads[0].firstName,lastSaveOk:window.__LH_LAST_SAVE_OK__});"

@@ -131,11 +131,12 @@ jobs:
           set +e
           adb logcat -c
           timeout 180 adb shell am instrument -w -r \
-            -e class com.kyle.leadhopper.LeadHopperDataSurvivalTest \
+            -e class com.kyle.leadhopper.LeadHopperDataSurvivalTest,com.kyle.leadhopper.MigrationSnapshotStoreTest \
             com.kyle.leadhopper.test/androidx.test.runner.AndroidJUnitRunner \
             2>&1 | tee data-survival-artifacts/data-survival-tests.txt
           code=${PIPESTATUS[0]}
           if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/data-survival-tests.txt; then code=1; fi
+          if ! grep -Fq 'OK (9 tests)' data-survival-artifacts/data-survival-tests.txt; then code=1; fi
           echo "$code" > data-survival-artifacts/test-exit-code.txt
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           adb logcat -d -v threadtime > data-survival-artifacts/logcat.txt 2>/dev/null || true
@@ -168,6 +169,7 @@ jobs:
             if [ "$code" != "0" ]; then overall=1; fi
           done
           if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/golden-regressions.txt; then overall=1; fi
+          if [ "$(grep -Fc 'OK (1 test)' data-survival-artifacts/golden-regressions.txt)" != "7" ]; then overall=1; fi
           echo "$overall" > data-survival-artifacts/golden-exit-code.txt
           echo "exit_code=$overall" >> "$GITHUB_OUTPUT"
           exit 0
