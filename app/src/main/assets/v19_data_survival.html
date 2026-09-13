@@ -22,8 +22,41 @@
     return true;
   };
 
+  saveAll = function(){
+    if(!hydrated){
+      blockedPreloadSaves += 1;
+      window.__LH_BLOCKED_PRELOAD_SAVE_COUNT__ = blockedPreloadSaves;
+      return false;
+    }
+    try {
+      state.lastActiveAt = nowISO();
+      var candidate = JSON.stringify(state);
+      localStorage.setItem(STORE_KEY, candidate);
+      lastDurableRaw = candidate;
+      window.__LH_LAST_SAVE_OK__ = true;
+      return true;
+    } catch(err) {
+      window.__LH_LAST_SAVE_OK__ = false;
+      window.__LH_LAST_SAVE_ERROR__ = String(err && err.message ? err.message : err);
+      if(lastDurableRaw){
+        try { state = JSON.parse(lastDurableRaw); } catch(_restoreErr) {}
+      }
+      setTimeout(function(){
+        try { renderAll(); } catch(_renderErr) {}
+        try { showToast('Could not save this change. The last safely saved state was restored.', [], 7000); } catch(_toastErr) {}
+      }, 0);
+      return false;
+    }
+  };
+
   window.v19GetPersistenceStatus = function(){
-    return {hydrated:hydrated, blockedPreloadSaves:blockedPreloadSaves, hasSnapshot:!!lastDurableRaw};
+    return {
+      hydrated: hydrated,
+      blockedPreloadSaves: blockedPreloadSaves,
+      hasSnapshot: !!lastDurableRaw,
+      lastSaveOk: window.__LH_LAST_SAVE_OK__ !== false,
+      lastSaveError: window.__LH_LAST_SAVE_ERROR__ || null
+    };
   };
 })();
 </script>
