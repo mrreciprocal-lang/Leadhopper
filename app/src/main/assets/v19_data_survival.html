@@ -39,6 +39,20 @@
     }
     if(candidate.customButtons!=null){if(!Array.isArray(candidate.customButtons))throw new Error('Invalid custom actions.');candidate.customButtons.forEach(function(x){if(!x||typeof x.id!=='string'||!/^[a-zA-Z0-9_-]+$/.test(x.id)||typeof x.label!=='string'||!Number.isFinite(x.snoozeDays)||x.snoozeDays<0)throw new Error('Invalid custom action.');});}
     if(candidate.settings!=null){if(typeof candidate.settings!=='object'||Array.isArray(candidate.settings))throw new Error('Invalid settings.');['notInterestedDays','unlockMinutes','appointmentSpacingMinutes','cphGoal'].forEach(function(k){if(candidate.settings[k]!=null&&(!Number.isFinite(candidate.settings[k])||candidate.settings[k]<0))throw new Error('Invalid setting '+k);});}
+    if(candidate.phoneQueue!=null){
+      if(typeof candidate.phoneQueue!=='object'||Array.isArray(candidate.phoneQueue))throw new Error('Invalid phone queue.');
+      Object.keys(candidate.phoneQueue).forEach(function(phone){
+        if(!/^\d{7,15}$/.test(phone))throw new Error('Invalid phone queue key.');
+        var q=candidate.phoneQueue[phone];
+        if(!q||typeof q!=='object'||Array.isArray(q))throw new Error('Invalid phone queue record.');
+        if(q.phone!==phone)throw new Error('Mismatched phone queue record.');
+        if(q.ownerLeadId!=null&&(typeof q.ownerLeadId!=='string'||(strict&&!ids.has(q.ownerLeadId))))throw new Error('Unresolved phone queue owner.');
+        if(q.nextEligibleAt!=null&&!Number.isFinite(Date.parse(q.nextEligibleAt)))throw new Error('Invalid phone queue eligibility.');
+        if(typeof q.removedFromCold!=='boolean')throw new Error('Invalid phone queue removal state.');
+        if(q.reason!=null&&typeof q.reason!=='string')throw new Error('Invalid phone queue reason.');
+        if(q.updatedAt!=null&&!Number.isFinite(Date.parse(q.updatedAt)))throw new Error('Invalid phone queue timestamp.');
+      });
+    }
     return candidate;
   }
   window.v19ValidateState=validate;
@@ -98,6 +112,17 @@
     }
   };
   window.v19GetPersistenceStatus=function(){return {hydrated:hydrated,blockedPreloadSaves:blockedPreloadSaves,hasSnapshot:!!lastDurableRaw,lastSaveOk:window.__LH_LAST_SAVE_OK__!==false,lastSaveError:window.__LH_LAST_SAVE_ERROR__||null};};
+  window.v19VerifyDurableSync=function(){
+    if(!hydrated||!window.__LH_STORAGE_READY__)return {ok:false,status:'not-ready',hydrated:hydrated,storageReady:!!window.__LH_STORAGE_READY__};
+    try{
+      if(saveAll()===false)return {ok:false,status:'save-blocked',hydrated:hydrated,storageReady:!!window.__LH_STORAGE_READY__};
+      var raw=localStorage.getItem(STORE_KEY);
+      if(!window.AndroidBridge||typeof AndroidBridge.recoverSnapshot!=='function')return {ok:false,status:'no-native-bridge'};
+      var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));
+      var same=!!recovered.ok&&recovered.state===raw;
+      return {ok:same,status:same?'synced':'diverged',hydrated:hydrated,storageReady:!!window.__LH_STORAGE_READY__,hasLocal:raw!=null,hasNative:recovered.state!=null};
+    }catch(err){return {ok:false,status:'error',message:err&&err.message?err.message:String(err),hydrated:hydrated,storageReady:!!window.__LH_STORAGE_READY__};}
+  };
   window.v19BuildBackupEnvelope=function(){return {format:'lead-hopper-full-backup',backupVersion:1,exportedAt:nowISO(),schemaVersion:13,state:JSON.parse(JSON.stringify(state))};};
   window.v19ParseBackupText=function(text){
     var parsed=JSON.parse(String(text||'')),candidate=parsed;
