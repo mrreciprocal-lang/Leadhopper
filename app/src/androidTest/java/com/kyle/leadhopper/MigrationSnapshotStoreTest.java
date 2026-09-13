@@ -18,6 +18,12 @@ public class MigrationSnapshotStoreTest {
         File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
         String raw=state("saved");store.commit(store.stage(raw));
         assertEquals(raw,new MigrationSnapshotStore(directory).recover(null));
+        try{
+            new MigrationSnapshotStore(directory).recover(state("unexpected-local"));
+            fail("Unexplained local/native divergence was accepted");
+        }catch(IllegalStateException expected){
+            assertTrue(expected.getMessage().contains("divergence"));
+        }
     }
     @Test public void deathAfterStageBeforeLocalWriteRetainsPreviousGeneration() throws Exception {
         File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
