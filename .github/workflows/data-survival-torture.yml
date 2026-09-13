@@ -48,6 +48,7 @@ jobs:
               'v19ParseBackupText',
               'v19ApplyBackupText',
               'v19RestoreBackupInput',
+              'abortSnapshot',
           ]
           missing = [x for x in required if x not in text]
           if missing:
@@ -129,6 +130,11 @@ jobs:
         shell: bash
         run: |
           set +e
+          expected=$(grep -ho '@Test' \
+            app/src/androidTest/java/com/kyle/leadhopper/LeadHopperDataSurvivalTest.java \
+            app/src/androidTest/java/com/kyle/leadhopper/MigrationSnapshotStoreTest.java \
+            | wc -l | tr -d ' ')
+          echo "Expecting $expected data-survival tests"
           adb logcat -c
           timeout 180 adb shell am instrument -w -r \
             -e class com.kyle.leadhopper.LeadHopperDataSurvivalTest,com.kyle.leadhopper.MigrationSnapshotStoreTest \
@@ -136,7 +142,7 @@ jobs:
             2>&1 | tee data-survival-artifacts/data-survival-tests.txt
           code=${PIPESTATUS[0]}
           if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/data-survival-tests.txt; then code=1; fi
-          if ! grep -Fq 'OK (9 tests)' data-survival-artifacts/data-survival-tests.txt; then code=1; fi
+          if ! grep -Fq "OK ($expected tests)" data-survival-artifacts/data-survival-tests.txt; then code=1; fi
           echo "$code" > data-survival-artifacts/test-exit-code.txt
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           adb logcat -d -v threadtime > data-survival-artifacts/logcat.txt 2>/dev/null || true
