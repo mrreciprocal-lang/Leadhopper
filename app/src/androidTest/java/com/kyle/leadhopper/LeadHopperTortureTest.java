@@ -236,13 +236,17 @@ public class LeadHopperTortureTest {
     public void persistedStateMustSurviveARealPageBoot() throws Exception {
         String before = evalString(
                 "const s=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');" +
-                        "s.leads=[{id:'persist-sentinel',firstName:'Persistence',lastName:'Sentinel',phone:'3175550199',disposition:'New',calls:[],history:[]}];" +
+                        "s.leads=[" +
+                        "{id:'persist-current',firstName:'Current',lastName:'Resume',phone:'3175550188',disposition:'New',calls:[],history:[]}," +
+                        "{id:'persist-sentinel',firstName:'Persistence',lastName:'Sentinel',phone:'3175550199',disposition:'Callback',calls:[],history:[]}" +
+                        "];" +
                         "s.schedule=[{id:'persist-cb',type:'callback',leadId:'persist-sentinel',when:new Date(Date.now()+3600000).toISOString(),createdAt:new Date().toISOString(),done:false}];" +
                         "s.callLog=[{id:'persist-call',t:new Date().toISOString(),leadId:'persist-sentinel',phone:'3175550199'}];" +
                         "s.activityLog=[{id:'persist-act',t:new Date().toISOString(),leadId:'persist-sentinel',type:'TEST',detail:'must survive'}];" +
-                        "s.currentIndex=0;s.cursorLeadId='persist-sentinel';s.holdLeadId=null;s.activeTab='schedule';" +
+                        "s.currentIndex=0;s.cursorLeadId='persist-current';s.holdLeadId=null;s.overrideLeadId=null;s.activeTab='schedule';s.phoneQueue={};" +
                         "state=s;saveAll();return JSON.stringify(s);"
         );
+        assertTrue(before.contains("persist-current"));
         assertTrue(before.contains("persist-sentinel"));
         String oldGeneration = evalString("return window.__LH_PAGE_GENERATION__;");
         assertNotNull("Page generation marker must exist before reload", oldGeneration);
@@ -254,8 +258,9 @@ public class LeadHopperTortureTest {
         );
         String after = evalString(
                 "return JSON.stringify({" +
-                        "lead:state.leads.some(x=>x.id==='persist-sentinel')," +
-                        "schedule:state.schedule.some(x=>x.id==='persist-cb')," +
+                        "currentLead:state.leads.some(x=>x.id==='persist-current')," +
+                        "sentinelLead:state.leads.some(x=>x.id==='persist-sentinel')," +
+                        "schedule:state.schedule.some(x=>x.id==='persist-cb'&&x.leadId==='persist-sentinel')," +
                         "call:state.callLog.some(x=>x.leadId==='persist-sentinel')," +
                         "activity:state.activityLog.some(x=>x.id==='persist-act')," +
                         "cursor:state.cursorLeadId," +
@@ -263,11 +268,12 @@ public class LeadHopperTortureTest {
                         "});"
         );
         JSONObject o = new JSONObject(after);
-        assertTrue("Persisted lead was destroyed during boot", o.getBoolean("lead"));
+        assertTrue("Persisted current lead was destroyed during boot", o.getBoolean("currentLead"));
+        assertTrue("Persisted callback owner was destroyed during boot", o.getBoolean("sentinelLead"));
         assertTrue("Persisted callback was destroyed during boot", o.getBoolean("schedule"));
         assertTrue("Persisted call history was destroyed during boot", o.getBoolean("call"));
         assertTrue("Persisted activity history was destroyed during boot", o.getBoolean("activity"));
-        assertEquals("persist-sentinel", o.getString("cursor"));
+        assertEquals("A still-eligible saved cursor must resume after boot", "persist-current", o.getString("cursor"));
         assertEquals("schedule", o.getString("tab"));
     }
 
