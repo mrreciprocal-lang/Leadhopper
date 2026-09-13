@@ -149,29 +149,18 @@ jobs:
           set +e
           CLASS=com.kyle.leadhopper.LeadHopperTortureTest
           RUNNER=com.kyle.leadhopper.test/androidx.test.runner.AndroidJUnitRunner
-          methods=(
-            productionPackageContainsEveryLockedRepairMarker
-            hopperButtonsAreTrueFiftyFiftyAndEqualHeight
-            activityBackControlReturnsToHopper
-            reportAndCsvExportsAreRoutedThroughNativeSaveBridge
-            noAnswerMovesLeadToTailAndAutoAdvances
-            sameTimeDueCallbacksUseOriginalSchedulingOrder
-            appointmentSpacingHonorsExactBoundary
-          )
-          overall=0
-          for method in "${methods[@]}"; do
-            echo "=== GOLDEN: $method ===" | tee -a data-survival-artifacts/golden-regressions.txt
-            timeout 90 adb shell am instrument -w -r \
-              -e class "$CLASS#$method" \
-              "$RUNNER" \
-              2>&1 | tee -a data-survival-artifacts/golden-regressions.txt
-            code=${PIPESTATUS[0]}
-            if [ "$code" != "0" ]; then overall=1; fi
-          done
-          if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/golden-regressions.txt; then overall=1; fi
-          if [ "$(grep -Fc 'OK (1 test)' data-survival-artifacts/golden-regressions.txt)" != "7" ]; then overall=1; fi
-          echo "$overall" > data-survival-artifacts/golden-exit-code.txt
-          echo "exit_code=$overall" >> "$GITHUB_OUTPUT"
+          SELECTORS="$CLASS#productionPackageContainsEveryLockedRepairMarker,$CLASS#hopperButtonsAreTrueFiftyFiftyAndEqualHeight,$CLASS#activityBackControlReturnsToHopper,$CLASS#reportAndCsvExportsAreRoutedThroughNativeSaveBridge,$CLASS#noAnswerMovesLeadToTailAndAutoAdvances,$CLASS#sameTimeDueCallbacksUseOriginalSchedulingOrder,$CLASS#appointmentSpacingHonorsExactBoundary"
+          adb logcat -c
+          timeout 180 adb shell am instrument -w -r \
+            -e class "$SELECTORS" \
+            "$RUNNER" \
+            2>&1 | tee data-survival-artifacts/golden-regressions.txt
+          code=${PIPESTATUS[0]}
+          if grep -Eiq 'INSTRUMENTATION_FAILED|FAILURES!!!|Process crashed|shortMsg=' data-survival-artifacts/golden-regressions.txt; then code=1; fi
+          if ! grep -Fq 'OK (7 tests)' data-survival-artifacts/golden-regressions.txt; then code=1; fi
+          echo "$code" > data-survival-artifacts/golden-exit-code.txt
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          adb logcat -d -v threadtime > data-survival-artifacts/golden-logcat.txt 2>/dev/null || true
           exit 0
 
       - name: Upload data survival evidence
