@@ -14,6 +14,16 @@ public class MigrationSnapshotStoreTest {
         assertTrue(directory.mkdirs());return directory;
     }
     private String state(String label) { return "{\"schemaVersion\":13,\"label\":\""+label+"\",\"leads\":[],\"schedule\":[],\"callLog\":[],\"activityLog\":[]}"; }
+
+    @Test public void firstBridgeLaunchAcceptsLegacyLocalOnlyState() throws Exception {
+        MigrationSnapshotStore store=new MigrationSnapshotStore(directory());
+        String legacy=state("legacy-local-only");
+        assertEquals("A bridge with no native journal must accept the existing 1.x localStorage bytes",legacy,store.recover(legacy));
+        long generation=store.stage(legacy);
+        store.commit(generation);
+        assertEquals("Once adopted, the same legacy bytes must be the durable native generation",legacy,store.recover(legacy));
+    }
+
     @Test public void committedSnapshotSurvivesNewStoreAndMissingLocalStorage() throws Exception {
         File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
         String first=state("saved-first");store.commit(store.stage(first));
