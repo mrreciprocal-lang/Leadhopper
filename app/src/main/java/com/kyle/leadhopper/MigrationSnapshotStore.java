@@ -69,10 +69,19 @@ final class MigrationSnapshotStore {
         JSONObject journal = read();
         JSONObject pending = journal.optJSONObject("pending");
         if(pending != null) {
+            // Crash after localStorage completed but before journal commit: matching local bytes
+            // prove that this pending generation is the one that became durable in WebView storage.
             if(pending.getString("state").equals(local)) journal.put("current",pending);
-            journal.remove("pending"); write(journal);
+            // Otherwise the local write never completed. Keep the previous committed generation.
+            journal.remove("pending");
+            write(journal);
         }
         JSONObject current = journal.optJSONObject("current");
-        return local == null && current != null ? current.getString("state") : local;
+        String nativeState = current == null ? null : current.getString("state");
+        if(local == null) return nativeState;
+        if(nativeState == null) return local; // First bridge launch over a legacy localStorage-only install.
+        if(!nativeState.equals(local))
+            throw new IllegalStateException("Local/native snapshot divergence");
+        return local;
     }
 }
