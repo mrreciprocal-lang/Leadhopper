@@ -58,5 +58,71 @@
       lastSaveError: window.__LH_LAST_SAVE_ERROR__ || null
     };
   };
+
+  function validateBackupState(candidate){
+    if(!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new Error('Backup state is not an object.');
+    if(!Array.isArray(candidate.leads)) throw new Error('Backup is missing leads.');
+    if(!Array.isArray(candidate.schedule)) throw new Error('Backup is missing schedule data.');
+    if(!Array.isArray(candidate.callLog)) throw new Error('Backup is missing call history.');
+    if(!Array.isArray(candidate.activityLog)) throw new Error('Backup is missing activity history.');
+    return candidate;
+  }
+
+  window.v19BuildBackupEnvelope = function(){
+    return {
+      format: 'lead-hopper-full-backup',
+      backupVersion: 1,
+      exportedAt: nowISO(),
+      schemaVersion: state && state.schemaVersion ? state.schemaVersion : null,
+      state: JSON.parse(JSON.stringify(state))
+    };
+  };
+
+  window.v19ParseBackupText = function(text){
+    var parsed = JSON.parse(String(text || ''));
+    var candidate = null;
+    if(parsed && parsed.format === 'lead-hopper-full-backup' && parsed.state){
+      candidate = parsed.state;
+    } else if(parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.leads)){
+      candidate = parsed;
+    } else {
+      throw new Error('This is not a Lead Hopper full backup.');
+    }
+    validateBackupState(candidate);
+    return JSON.parse(JSON.stringify(candidate));
+  };
+
+  window.v19ApplyBackupText = function(text, reloadAfter){
+    var restored = window.v19ParseBackupText(text);
+    var raw = JSON.stringify(restored);
+    localStorage.setItem(STORE_KEY, raw);
+    lastDurableRaw = raw;
+    if(reloadAfter === false){
+      state = JSON.parse(raw);
+      hydrated = true;
+      window.__LH_STORAGE_READY__ = true;
+      try { renderAll(); } catch(_e) {}
+      return true;
+    }
+    location.reload();
+    return true;
+  };
+
+  exportData = window.exportData = function(){
+    if(saveAll() === false){
+      try { showToast('Backup stopped because current state could not be saved safely.', [], 5000); } catch(_e) {}
+      return false;
+    }
+    try {
+      var envelope = window.v19BuildBackupEnvelope();
+      var stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      downloadText('lead-hopper-full-backup-' + stamp + '.json', JSON.stringify(envelope, null, 2), 'application/json');
+      showToast('Full Lead Hopper backup ready to save.', [], 2200);
+      return true;
+    } catch(err){
+      showToast('Backup failed: ' + (err && err.message ? err.message : err), [], 5000);
+      return false;
+    }
+  };
 })();
 </script>
