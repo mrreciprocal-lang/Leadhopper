@@ -23,6 +23,7 @@ PATCHES = [
     ("v16HopperUiRepairScript", "v16_hopper_ui_repair.html"),
     ("v17UiNotesScript", "v17_ui_notes.html"),
     ("v18ActivityReportsRepairScript", "v18_activity_reports_repair.html"),
+    ("v19DataSurvivalScript", "v19_data_survival.html"),
 ]
 
 
@@ -67,6 +68,7 @@ def validate(text: str) -> None:
         "__LH_V16_HOPPER_UI_REPAIR__",
         "__LH_V17_UI_NOTES__",
         "__LH_V18_ACTIVITY_REPORTS_REPAIR__",
+        "__LH_V19_DATA_SURVIVAL__",
         "AndroidBridge.saveText",
         "v18MenuHome",
         "v18ActivityNav",
