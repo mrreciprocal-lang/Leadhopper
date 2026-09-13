@@ -43,13 +43,9 @@ public class LeadHopperPhoneQueueTest {
 
     @After
     public void leaveJournalSynchronized() throws Exception {
-        String result = evalString(
-                "if(!window.__LH_STORAGE_READY__||typeof state==='undefined'||!state)return 'not-ready';" +
-                        "lastSnapshot=null;saveAll();var raw=localStorage.getItem(STORE_KEY);" +
-                        "var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));" +
-                        "return recovered.ok&&recovered.state===raw?'synced':'diverged';"
-        );
-        assertEquals("Phone-queue tests must leave native and WebView state synchronized", "synced", result);
+        JSONObject result = new JSONObject(evalString("return JSON.stringify(v19VerifyDurableSync());"));
+        assertTrue("Phone-queue tests must leave native and WebView state synchronized: " + result, result.getBoolean("ok"));
+        assertEquals("synced", result.getString("status"));
     }
 
     private WebView findWebView(View view) {
@@ -118,6 +114,7 @@ public class LeadHopperPhoneQueueTest {
         assertEquals("unique", eligible.getString(0));
         assertEquals("susan", eligible.getString(1));
         assertEquals("No Answer must retain the worked person as the single phone-entry owner", "susan", o.getJSONObject("q").getString("ownerLeadId"));
+        assertTrue("No Answer must move the shared phone behind the unique phone", o.getJSONObject("q").getDouble("order") > 1d);
         assertFalse(eligible.toString().contains("bob"));
         assertFalse(eligible.toString().contains("mary"));
     }
@@ -132,7 +129,7 @@ public class LeadHopperPhoneQueueTest {
         JSONArray niEligible = ni.getJSONArray("eligible");
         assertEquals(1, niEligible.length());
         assertEquals("unique", niEligible.getString(0));
-        assertTrue(new JSONObject(ni.getJSONObject("q").toString()).getString("nextEligibleAt").length() > 10);
+        assertTrue(ni.getJSONObject("q").getString("nextEligibleAt").length() > 10);
 
         JSONObject custom = new JSONObject(evalString(
                 seedSharedPhone("[{id:'later',label:'Try Later',snoozeDays:3,enabled:true,createdAt:new Date().toISOString()}]") +
@@ -190,12 +187,13 @@ public class LeadHopperPhoneQueueTest {
         JSONObject wrong = new JSONObject(evalString(
                 seedSharedPhone("[]") +
                         "applyDisposition('Wrong Number');" +
-                        "return JSON.stringify({eligible:eligibleLeads().map(function(x){return x.id;}),wrongCount:state.suppression.wrongNumbers.length,dncCount:state.suppression.dnc.length});"
+                        "return JSON.stringify({eligible:eligibleLeads().map(function(x){return x.id;}),owner:phase0PhoneQueueStatus('3175550101').ownerLeadId,wrongCount:state.suppression.wrongNumbers.length,dncCount:state.suppression.dnc.length});"
         ));
         JSONArray wrongEligible = wrong.getJSONArray("eligible");
         assertEquals(2, wrongEligible.length());
         assertTrue(wrongEligible.toString().contains("bob"));
         assertFalse(wrongEligible.toString().contains("susan"));
+        assertEquals("bob", wrong.getString("owner"));
         assertEquals(1, wrong.getInt("wrongCount"));
         assertEquals(0, wrong.getInt("dncCount"));
 
@@ -209,5 +207,28 @@ public class LeadHopperPhoneQueueTest {
         assertEquals("unique", dncEligible.getString(0));
         assertEquals(0, dnc.getInt("wrongCount"));
         assertEquals(1, dnc.getInt("dncCount"));
+    }
+
+    @Test
+    public void importReusesSiblingPhoneEntryAndAppendsNewDistinctPhoneAtTail() throws Exception {
+        JSONObject o = new JSONObject(evalString(
+                seedSharedPhone("[]") +
+                        "var initialShared=phase0PhoneQueueStatus('3175550101').order;var initialUnique=phase0PhoneQueueStatus('3175550199').order;" +
+                        "document.getElementById('importFormat').value='json';document.getElementById('importMode').value='merge';" +
+                        "document.getElementById('importText').value=JSON.stringify([" +
+                        "{firstName:'Zelda',lastName:'Smith',phone:'3175550101'}," +
+                        "{firstName:'Nina',lastName:'Newphone',phone:'3175550888'}]);" +
+                        "var oldConfirm=window.confirm;window.confirm=function(){return true;};doImport();window.confirm=oldConfirm;" +
+                        "var afterShared=phase0PhoneQueueStatus('3175550101');var afterUnique=phase0PhoneQueueStatus('3175550199');var added=phase0PhoneQueueStatus('3175550888');" +
+                        "return JSON.stringify({initialShared:initialShared,initialUnique:initialUnique,afterShared:afterShared.order,afterUnique:afterUnique.order,added:added.order,queueKeys:Object.keys(state.phoneQueue).length,eligible:eligibleLeads().map(function(x){return cleanPhone(x.phone);})});"
+        ));
+        assertEquals(o.getDouble("initialShared"), o.getDouble("afterShared"), 0d);
+        assertEquals(o.getDouble("initialUnique"), o.getDouble("afterUnique"), 0d);
+        assertTrue("A genuinely new phone must join behind all existing phone entries", o.getDouble("added") > o.getDouble("afterUnique"));
+        assertEquals("The imported sibling must reuse the existing shared-phone entry", 3, o.getInt("queueKeys"));
+        JSONArray eligible = o.getJSONArray("eligible");
+        int sharedCount = 0;
+        for (int i = 0; i < eligible.length(); i++) if ("3175550101".equals(eligible.getString(i))) sharedCount++;
+        assertEquals("Importing a sibling must not create another ordinary cold opportunity", 1, sharedCount);
     }
 }
