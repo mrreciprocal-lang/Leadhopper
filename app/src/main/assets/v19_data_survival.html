@@ -2,5 +2,11 @@
 (function(){
   if(window.__LH_V19_DATA_SURVIVAL__) return;
   window.__LH_V19_DATA_SURVIVAL__ = true;
+  var hydrated = false;
+  var lastDurableRaw = null;
+  var blockedPreloadSaves = 0;
+  window.v19GetPersistenceStatus = function(){
+    return {hydrated:hydrated, blockedPreloadSaves:blockedPreloadSaves, hasSnapshot:!!lastDurableRaw};
+  };
 })();
 </script>
