@@ -28,6 +28,20 @@ PATCHES = [
     ("v19RestoreUiScript", "v19_restore_ui.html"),
 ]
 
+BOOT_LOCKED_ACTION_IDS = [
+    "btnCallNow",
+    "btnAppt",
+    "btnCallback",
+    "btnNoAnswer",
+    "btnNoEnglish",
+    "btnWrongNumber",
+    "btnDNC",
+    "btnNI",
+    "btnStateFarm",
+    "btnNextLead",
+    "btnPrevLead",
+]
+
 
 def restore_base() -> str:
     canonical = ASSETS / "bridge_base.html"
@@ -39,6 +53,22 @@ def restore_base() -> str:
     encoded = "".join(p.read_text(encoding="utf-8").replace("\r", "").replace("\n", "") for p in parts)
     raw = base64.b64decode(encoded)
     return gzip.decompress(raw).decode("utf-8")
+
+
+def lock_actions_until_bootstrap(document: str) -> str:
+    """Prevent taps while the parser has rendered buttons but their handlers are not defined yet.
+
+    The production base places Hopper buttons before its JavaScript. A very fast Monkey tap (or
+    human tap during a WebView/process restart) can therefore hit an inline handler before the
+    script that defines it has executed. Keep the controls natively disabled in the initial DOM;
+    the existing render/eligibility path enables the appropriate controls after hydration/init.
+    """
+    for action_id in BOOT_LOCKED_ACTION_IDS:
+        token = f'id="{action_id}"'
+        if document.count(token) != 1:
+            raise RuntimeError(f"Expected exactly one bootstrap action {action_id}")
+        document = document.replace(token, token + " disabled", 1)
+    return document
 
 
 def apply_api26_compatibility(document: str) -> str:
@@ -100,6 +130,10 @@ def validate(text: str) -> None:
     if text.count(pre_token) != 1 or not (init < text.find(pre_token) < v13):
         raise RuntimeError("Data survival patch must execute exactly once before V13 bootstrap")
 
+    for action_id in BOOT_LOCKED_ACTION_IDS:
+        if f'id="{action_id}" disabled' not in text:
+            raise RuntimeError(f"Bootstrap action {action_id} is not initially disabled")
+
     for marker, _ in PATCHES:
         token = f'id="{marker}"'
         count = text.count(token)
@@ -134,7 +168,8 @@ def validate(text: str) -> None:
 
 
 def main() -> None:
-    text = apply_api26_compatibility(restore_base())
+    text = lock_actions_until_bootstrap(restore_base())
+    text = apply_api26_compatibility(text)
     pre_marker, pre_filename = PRE_V13_PATCH
     pre_fragment = apply_api26_compatibility((ASSETS / pre_filename).read_text(encoding="utf-8"))
     if f'id="{pre_marker}"' not in text:
