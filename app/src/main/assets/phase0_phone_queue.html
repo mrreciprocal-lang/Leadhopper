@@ -1,0 +1,210 @@
+<script id="phase0PhoneQueueScript">
+(function(){
+  if(window.__LH_PHASE0_PHONE_QUEUE__) return;
+  window.__LH_PHASE0_PHONE_QUEUE__=true;
+
+  function tx(fn){
+    return typeof window.v19Transaction==='function'?window.v19Transaction(fn):fn();
+  }
+  function queueStore(){
+    if(!state.phoneQueue||typeof state.phoneQueue!=='object'||Array.isArray(state.phoneQueue))state.phoneQueue={};
+    return state.phoneQueue;
+  }
+  function personKey(lead){
+    return safeText(lead&&lead.firstName).toLowerCase()+'|'+safeText(lead&&lead.lastName).toLowerCase();
+  }
+  function exactPersonPhoneKey(lead){return personKey(lead)+'|'+cleanPhone(lead&&lead.phone);}
+  function comparePeople(a,b){
+    var al=safeText(a&&a.lastName).toLowerCase(),bl=safeText(b&&b.lastName).toLowerCase();
+    if(al<bl)return -1;if(al>bl)return 1;
+    var af=safeText(a&&a.firstName).toLowerCase(),bf=safeText(b&&b.firstName).toLowerCase();
+    if(af<bf)return -1;if(af>bf)return 1;
+    return String(a&&a.id||'').localeCompare(String(b&&b.id||''));
+  }
+  function members(phone,activeOnly){
+    var p=cleanPhone(phone);if(!p)return [];
+    return (state.leads||[]).filter(function(lead){return cleanPhone(lead.phone)===p&&(!activeOnly||lead.active!==false);}).sort(comparePeople);
+  }
+  function phoneForSchedule(item){
+    if(!item)return '';
+    var linked=item.leadId&&(state.leads||[]).find(function(lead){return String(lead.id)===String(item.leadId);});
+    return cleanPhone(linked&&linked.phone)||cleanPhone(item.phone);
+  }
+  function hasOpenAppointment(phone){
+    var p=cleanPhone(phone);if(!p)return false;
+    var q=queueStore()[p];if(q&&q.removedFromCold)return true;
+    if((state.leads||[]).some(function(lead){return cleanPhone(lead.phone)===p&&leadDisposition(lead)==='Appointment Set';}))return true;
+    return (state.schedule||[]).some(function(item){return item.type==='appointment'&&!item.done&&phoneForSchedule(item)===p;});
+  }
+  function hasUnresolvedCallback(phone){
+    var p=cleanPhone(phone);if(!p)return false;
+    return (state.schedule||[]).some(function(item){return item.type==='callback'&&!item.done&&phoneForSchedule(item)===p;});
+  }
+  function suppressedPerson(lead){
+    var p=cleanPhone(lead&&lead.phone);if(!p)return false;
+    var sup=state.suppression||{dnc:[],wrongNumbers:[]};
+    if((sup.dnc||[]).some(function(item){return item.phone===p;}))return true;
+    var exact=exactPersonPhoneKey(lead);
+    return (sup.wrongNumbers||[]).some(function(item){return item.key===exact;});
+  }
+  function ordinaryPersonEligible(lead){
+    return !!(lead&&lead.active!==false&&!suppressedPerson(lead)&&!isRemoved(lead)&&!isSnoozed(lead)&&leadDisposition(lead)!=='Appointment Set');
+  }
+  function recordFor(phone,create){
+    var p=cleanPhone(phone);if(!p)return null;
+    var store=queueStore(),q=store[p];
+    if(!q&&create){q=store[p]={phone:p,ownerLeadId:null,nextEligibleAt:null,removedFromCold:false,reason:null,updatedAt:nowISO()};}
+    return q||null;
+  }
+  function chooseInitialOwner(phone){
+    var active=members(phone,true),eligible=active.filter(ordinaryPersonEligible);
+    return (eligible[0]||active[0]||null);
+  }
+  function bootstrapQueue(){
+    var changed=false,seen={};queueStore();
+    (state.leads||[]).forEach(function(lead){
+      var p=cleanPhone(lead.phone);if(!p||seen[p])return;seen[p]=true;
+      if(state.phoneQueue[p])return;
+      var owner=chooseInitialOwner(p),q=recordFor(p,true);changed=true;
+      q.ownerLeadId=owner&&owner.id||null;
+      if(owner&&owner.nextEligibleAt&&new Date(owner.nextEligibleAt).getTime()>Date.now()){
+        q.nextEligibleAt=owner.nextEligibleAt;q.reason=leadDisposition(owner)||'snooze';
+      }
+      if((state.leads||[]).some(function(x){return cleanPhone(x.phone)===p&&leadDisposition(x)==='Appointment Set';})||
+         (state.schedule||[]).some(function(item){return item.type==='appointment'&&!item.done&&phoneForSchedule(item)===p;})){
+        q.removedFromCold=true;q.nextEligibleAt=null;q.reason='Appointment Set';
+      }
+    });
+    if(changed&&window.__LH_STORAGE_READY__)saveAll();
+  }
+  function applyQueueEffect(lead){
+    var p=cleanPhone(lead&&lead.phone);if(!p)return false;
+    var q=recordFor(p,true),disp=leadDisposition(lead),next=lead.nextEligibleAt&&new Date(lead.nextEligibleAt).getTime()>Date.now()?lead.nextEligibleAt:null;
+    q.ownerLeadId=lead.id;
+    q.updatedAt=nowISO();
+    q.reason=disp||null;
+    if(disp==='Appointment Set'){
+      q.removedFromCold=true;q.nextEligibleAt=null;
+    }else if(next){
+      q.removedFromCold=false;q.nextEligibleAt=next;
+    }else if(disp==='Callback'){
+      q.removedFromCold=false;q.nextEligibleAt=null;
+    }else if(disp==='No Answer'||disp==='Wrong Number'||disp==='Do Not Call'||disp==='No English'||disp==='New'||disp==='Quote'||!next){
+      q.removedFromCold=false;q.nextEligibleAt=null;
+    }
+    return true;
+  }
+  function dueCallbacks(){
+    var now=Date.now();
+    return (state.schedule||[]).filter(function(item){return item.type==='callback'&&!item.done&&new Date(item.when).getTime()<=now;}).sort(function(a,b){
+      return new Date(a.when)-new Date(b.when)||new Date(a.createdAt||0)-new Date(b.createdAt||0)||String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  bootstrapQueue();
+
+  // The preceding Phase 0 identity patch already collapses ordinary sibling candidates.
+  // This layer adds durable phone-level scheduling/queue effects so a sleeping/removed owner
+  // cannot be bypassed by another person sharing the same normalized phone.
+  var priorEligible=window.eligibleLeads;
+  window.eligibleLeads=eligibleLeads=function(){
+    var base=priorEligible();
+    var baseById={};base.forEach(function(lead){baseById[lead.id]=lead;});
+    var out=[],included={},claimedPhones={};
+    dueCallbacks().forEach(function(item){
+      var lead=baseById[item.leadId];if(!lead||included[lead.id])return;
+      out.push(lead);included[lead.id]=true;
+      var p=cleanPhone(lead.phone);if(p)claimedPhones[p]=true;
+    });
+
+    var ordinary=[];
+    base.forEach(function(candidate,index){
+      if(included[candidate.id])return;
+      var p=cleanPhone(candidate.phone);
+      if(!p){ordinary.push({lead:candidate,rank:index});return;}
+      if(claimedPhones[p]||hasUnresolvedCallback(p)||hasOpenAppointment(p))return;
+      var q=recordFor(p,true);
+      if(q.nextEligibleAt&&new Date(q.nextEligibleAt).getTime()>Date.now())return;
+      var owner=(state.leads||[]).find(function(lead){return String(lead.id)===String(q.ownerLeadId||'')&&cleanPhone(lead.phone)===p;});
+      var representative=owner&&ordinaryPersonEligible(owner)?owner:candidate;
+      var already=ordinary.some(function(x){return cleanPhone(x.lead.phone)===p;});if(already)return;
+      var priority=(state.priorityLeadIds||[]).indexOf(representative.id);
+      var stateRank=(state.leads||[]).findIndex(function(lead){return String(lead.id)===String(representative.id);});
+      ordinary.push({lead:representative,rank:priority>=0?-100000+priority:(stateRank>=0?stateRank:index)});
+    });
+    ordinary.sort(function(a,b){return a.rank-b.rank||comparePeople(a.lead,b.lead);});
+    ordinary.forEach(function(item){if(!included[item.lead.id]){out.push(item.lead);included[item.lead.id]=true;}});
+    return out;
+  };
+
+  // Keep a due callback's exact person as the phone owner before the legacy hotfix marks the
+  // schedule item done. Otherwise recalculating eligibility mid-Call-Now could silently retarget
+  // the action to an alphabetical sibling at the same phone.
+  var priorCallNow=window.uiCallNow;
+  window.uiCallNow=function(){
+    var lead=getCurrentLead();
+    if(!lead)return priorCallNow.apply(this,arguments);
+    var self=this,args=arguments;
+    return tx(function(){
+      var q=recordFor(lead.phone,true);if(q){q.ownerLeadId=lead.id;q.updatedAt=nowISO();saveAll();}
+      return priorCallNow.apply(self,args);
+    });
+  };
+
+  // Next is the final guardrail: any completed outcome must write the phone-level queue effect
+  // before selecting another lead. This happens early enough for No Answer and Callback, both of
+  // which auto-advance inside older code.
+  var priorNextLead=window.nextLead;
+  window.nextLead=function(){
+    var worked=getCurrentLead(),self=this,args=arguments;
+    return tx(function(){
+      if(worked&&canAdvance(worked)){applyQueueEffect(worked);saveAll();}
+      return priorNextLead.apply(self,args);
+    });
+  };
+
+  // Held/manual-Next outcomes still need their phone-level effect durable immediately after save,
+  // so navigating away cannot expose a sibling during the hold period.
+  var priorApplyDisposition=window.applyDisposition;
+  window.applyDisposition=function(type){
+    var worked=getCurrentLead(),before=(state.activityLog||[]).length,self=this,args=arguments;
+    return tx(function(){
+      var result=priorApplyDisposition.apply(self,args);
+      var live=worked&&(state.leads||[]).find(function(lead){return String(lead.id)===String(worked.id);});
+      if(live&&(state.activityLog||[]).length>before){applyQueueEffect(live);saveAll();renderAll();}
+      return result;
+    });
+  };
+
+  var priorCustom=window.v13UseCustom;
+  if(typeof priorCustom==='function')window.v13UseCustom=function(){
+    var worked=getCurrentLead(),before=(state.activityLog||[]).length,self=this,args=arguments;
+    return tx(function(){
+      var result=priorCustom.apply(self,args);
+      var live=worked&&(state.leads||[]).find(function(lead){return String(lead.id)===String(worked.id);});
+      if(live&&(state.activityLog||[]).length>before){applyQueueEffect(live);saveAll();renderAll();}
+      return result;
+    });
+  };
+
+  var priorSaveAppointment=window.saveAppointment;
+  window.saveAppointment=function(){
+    var worked=getCurrentLead(),before={};(state.schedule||[]).forEach(function(item){before[item.id]=true;});
+    var self=this,args=arguments;
+    return tx(function(){
+      var result=priorSaveAppointment.apply(self,args);
+      var created=(state.schedule||[]).find(function(item){return item.type==='appointment'&&worked&&String(item.leadId)===String(worked.id)&&!before[item.id];});
+      var live=worked&&(state.leads||[]).find(function(lead){return String(lead.id)===String(worked.id);});
+      if(created&&live){applyQueueEffect(live);saveAll();renderAll();}
+      return result;
+    });
+  };
+
+  // Expose read-only test diagnostics; product UI never depends on this object directly.
+  window.phase0PhoneQueueStatus=function(phone){
+    var p=cleanPhone(phone),q=p&&recordFor(p,false);return q?JSON.parse(JSON.stringify(q)):null;
+  };
+
+  try{renderAll();}catch(_e){}
+})();
+</script>
