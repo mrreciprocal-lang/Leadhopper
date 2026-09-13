@@ -1,0 +1,39 @@
+name: Lead Hopper Cursor Diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'stabilization/1.7.7-data-survival'
+    paths:
+      - '.github/workflows/cursor-diagnostic.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble exact production HTML
+        run: python tools/prepare_leadhopper_assets.py
+      - name: Print cursor-related production code
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
+          needles = ['cursorLeadId', 'function loadAll', 'loadAll=', 'function getCurrentLead', 'function eligibleLeads', 'function renderAll', 'function setTab']
+          for needle in needles:
+              print('\n===== NEEDLE:', needle, '=====')
+              start = 0
+              count = 0
+              while True:
+                  i = text.find(needle, start)
+                  if i < 0:
+                      break
+                  count += 1
+                  lo = max(0, i - 700)
+                  hi = min(len(text), i + 1300)
+                  print(f'--- occurrence {count} at {i} ---')
+                  print(text[lo:hi])
+                  start = i + len(needle)
+              print('COUNT', count)
+          PY
