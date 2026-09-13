@@ -47,9 +47,6 @@ jobs:
       - name: Validate packaged HTML structure and Hopper layout
         run: |
           python - <<'PY'
-          from pathlib import import Path
-          PY
-          python - <<'PY'
           from pathlib import Path
           text=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
           layout=Path('app/src/main/assets/v13_layout_order.html').read_text(encoding='utf-8')
