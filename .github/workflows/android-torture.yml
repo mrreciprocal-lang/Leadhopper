@@ -14,7 +14,7 @@ on:
       - 'gradle.properties'
 
 concurrency:
-  group: leadhopper-torture-${{ github.ref }}
+  group: leadhopper-torture-v2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -177,6 +177,7 @@ jobs:
 
       - name: Run production WebView instrumentation suite
         id: instrument
+        if: steps.emulator.outcome == 'success'
         shell: bash
         run: |
           mkdir -p torture-artifacts/api-${{ matrix.api }}
@@ -188,7 +189,7 @@ jobs:
           exit 0
 
       - name: Run visual viewport and font-scale sweeps
-        if: always() && matrix.api == 35
+        if: always() && steps.emulator.outcome == 'success' && matrix.api == 35
         shell: bash
         run: |
           PKG=com.kyle.leadhopper.test
@@ -202,7 +203,7 @@ jobs:
             adb shell settings put system font_scale "$scale" || true
             adb shell am force-stop com.kyle.leadhopper || true
             sleep 1
-            adb shell am instrument -w -r \
+            timeout 90 adb shell am instrument -w -r \
               -e class "$CLASS" \
               -e shotPrefix "$prefix" \
               "$PKG/$RUNNER" \
@@ -218,7 +219,7 @@ jobs:
 
       - name: Run ornery-toddler Monkey abuse
         id: monkey
-        if: always()
+        if: always() && steps.emulator.outcome == 'success'
         shell: bash
         run: |
           OUT="torture-artifacts/api-${{ matrix.api }}"
@@ -226,7 +227,7 @@ jobs:
           adb logcat -c
           adb shell am force-stop com.kyle.leadhopper
           adb shell am start -W -n com.kyle.leadhopper/.MainActivity > "$OUT/launch-before-monkey.txt" 2>&1
-          adb shell monkey \
+          timeout 150 adb shell monkey \
             -p com.kyle.leadhopper \
             -s 17625 \
             --throttle 18 \
@@ -258,15 +259,15 @@ jobs:
           exit 0
 
       - name: Pull screenshots and Android test evidence
-        if: always()
+        if: always() && steps.emulator.outcome == 'success'
         shell: bash
         run: |
           OUT="torture-artifacts/api-${{ matrix.api }}"
           mkdir -p "$OUT/screenshots" "$OUT/androidTest-results"
-          adb pull /sdcard/Android/data/com.kyle.leadhopper/files/Pictures/torture "$OUT/screenshots" >/dev/null 2>&1 || true
+          timeout 30 adb pull /sdcard/Android/data/com.kyle.leadhopper/files/Pictures/torture "$OUT/screenshots" >/dev/null 2>&1 || true
           cp -R app/build/reports/androidTests "$OUT/androidTest-results/reports" 2>/dev/null || true
           cp -R app/build/outputs/androidTest-results "$OUT/androidTest-results/raw" 2>/dev/null || true
-          adb logcat -d -v threadtime > "$OUT/final-logcat.txt" 2>/dev/null || true
+          timeout 30 adb logcat -d -v threadtime > "$OUT/final-logcat.txt" 2>/dev/null || true
 
       - name: Upload emulator torture evidence
         if: always()
@@ -280,14 +281,16 @@ jobs:
         if: always()
         shell: bash
         run: |
+          boot="${{ steps.emulator.outcome }}"
           test_code="${{ steps.instrument.outputs.exit_code }}"
           crash="${{ steps.monkey.outputs.crash }}"
           monkey_code="${{ steps.monkey.outputs.monkey_code }}"
+          [ "$boot" = "success" ] || { echo "Emulator failed to boot."; exit 1; }
           [ -n "$test_code" ] || test_code=99
           [ -n "$crash" ] || crash=1
           [ -n "$monkey_code" ] || monkey_code=99
 
-          echo "instrumentation=$test_code monkey=$monkey_code crash_scan=$crash"
+          echo "boot=$boot instrumentation=$test_code monkey=$monkey_code crash_scan=$crash"
           if [ "$test_code" != "0" ] || [ "$crash" != "0" ] || [ "$monkey_code" != "0" ]; then
             echo "Lead Hopper emulator torture gate failed. Inspect uploaded evidence."
             exit 1
