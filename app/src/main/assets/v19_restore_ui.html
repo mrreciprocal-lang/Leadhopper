@@ -1,0 +1,23 @@
+<div class="modal hidden" id="v19RestoreBackupModal">
+  <div class="modal-card">
+    <div class="modal-title">Restore Full Backup</div>
+    <div class="modal-sub">Choose a Lead Hopper full-backup JSON file. Nothing changes until the backup is validated and confirmed.</div>
+    <div class="field" style="margin-top:10px">
+      <label>Backup file</label>
+      <input id="v19RestoreBackupInput" type="file" accept=".json,application/json">
+    </div>
+    <div id="v19RestoreBackupStatus" class="v13-small" style="margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="v19CloseRestoreBackup()">Cancel</button>
+      <button class="btn btn-solid" id="v19RestoreBackupConfirm" disabled>Restore Backup</button>
+    </div>
+  </div>
+</div>
+<script id="v19RestoreUiScript">
+(function(){
+  if(window.__LH_V19_RESTORE_UI__) return;
+  window.__LH_V19_RESTORE_UI__ = true;
+  window.v19OpenRestoreBackup = function(){ document.getElementById('v19RestoreBackupModal').classList.remove('hidden'); };
+  window.v19CloseRestoreBackup = function(){ document.getElementById('v19RestoreBackupModal').classList.add('hidden'); };
+})();
+</script>
