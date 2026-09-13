@@ -15,12 +15,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Assemble exact production HTML
         run: python tools/prepare_leadhopper_assets.py
-      - name: Print cursor-related production code
+      - name: Print startup cursor mutation code
         run: |
           python - <<'PY'
           from pathlib import Path
           text = Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
-          needles = ['cursorLeadId', 'function loadAll', 'loadAll=', 'function getCurrentLead', 'function eligibleLeads', 'function renderAll', 'function setTab']
+          needles = ['loadAll();', 'syncCursor();', '/* Init */', 'ensureV13();saveAll();setTab', 'setTab(state.activeTab', 'renderAll();']
           for needle in needles:
               print('\n===== NEEDLE:', needle, '=====')
               start = 0
@@ -30,8 +30,8 @@ jobs:
                   if i < 0:
                       break
                   count += 1
-                  lo = max(0, i - 700)
-                  hi = min(len(text), i + 1300)
+                  lo = max(0, i - 1000)
+                  hi = min(len(text), i + 1800)
                   print(f'--- occurrence {count} at {i} ---')
                   print(text[lo:hi])
                   start = i + len(needle)
