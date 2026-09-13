@@ -5,6 +5,23 @@
   var hydrated = false;
   var lastDurableRaw = null;
   var blockedPreloadSaves = 0;
+  var priorLoadAll = loadAll;
+
+  loadAll = function(){
+    var raw = null;
+    try { raw = localStorage.getItem(STORE_KEY); } catch(_e) {}
+    priorLoadAll();
+    hydrated = true;
+    if(raw){
+      try { JSON.parse(raw); lastDurableRaw = raw; } catch(_e2) { lastDurableRaw = null; }
+    }
+    if(!lastDurableRaw){
+      try { lastDurableRaw = JSON.stringify(state); } catch(_e3) { lastDurableRaw = null; }
+    }
+    window.__LH_STORAGE_READY__ = true;
+    return true;
+  };
+
   window.v19GetPersistenceStatus = function(){
     return {hydrated:hydrated, blockedPreloadSaves:blockedPreloadSaves, hasSnapshot:!!lastDurableRaw};
   };
