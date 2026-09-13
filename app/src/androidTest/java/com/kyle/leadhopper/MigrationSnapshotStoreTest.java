@@ -16,10 +16,13 @@ public class MigrationSnapshotStoreTest {
     private String state(String label) { return "{\"schemaVersion\":13,\"label\":\""+label+"\",\"leads\":[],\"schedule\":[],\"callLog\":[],\"activityLog\":[]}"; }
     @Test public void committedSnapshotSurvivesNewStoreAndMissingLocalStorage() throws Exception {
         File directory=directory();MigrationSnapshotStore store=new MigrationSnapshotStore(directory);
-        String raw=state("saved");store.commit(store.stage(raw));
-        assertEquals(raw,new MigrationSnapshotStore(directory).recover(null));
+        String first=state("saved-first");store.commit(store.stage(first));
+        String latest=state("saved-latest");store.commit(store.stage(latest));
+        MigrationSnapshotStore reopened=new MigrationSnapshotStore(directory);
+        assertEquals(latest,reopened.recover(null));
+        assertEquals("A known older localStorage generation must heal from newer native current",latest,reopened.recover(first));
         try{
-            new MigrationSnapshotStore(directory).recover(state("unexpected-local"));
+            reopened.recover(state("unexpected-local"));
             fail("Unexplained local/native divergence was accepted");
         }catch(IllegalStateException expected){
             assertTrue(expected.getMessage().contains("divergence"));
