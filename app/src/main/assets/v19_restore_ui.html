@@ -33,6 +33,13 @@
     if(confirmButton) confirmButton.disabled = true;
   }
 
+  function resetValidationOnly(){
+    pendingText = null;
+    pendingLeadCount = 0;
+    if(status) status.textContent = '';
+    if(confirmButton) confirmButton.disabled = true;
+  }
+
   window.v19OpenRestoreBackup = function(){
     resetRestore();
     if(modal) modal.classList.remove('hidden');
@@ -45,8 +52,8 @@
 
   if(input){
     input.addEventListener('change', function(){
-      resetRestore();
       var file = input.files && input.files[0];
+      resetValidationOnly();
       if(!file) return;
       var reader = new FileReader();
       reader.onload = function(){
