@@ -43,14 +43,9 @@ public class LeadHopperPhase0ContractTest {
 
     @After
     public void leaveJournalSynchronized() throws Exception {
-        String result = evalString(
-                "if(!window.__LH_STORAGE_READY__||typeof state==='undefined'||!state)return 'not-ready';" +
-                        "lastSnapshot=null;saveAll();" +
-                        "var raw=localStorage.getItem(STORE_KEY);" +
-                        "var recovered=JSON.parse(AndroidBridge.recoverSnapshot(raw));" +
-                        "return recovered.ok&&recovered.state===raw?'synced':'diverged';"
-        );
-        assertEquals("Phase 0 tests must leave the native journal synchronized", "synced", result);
+        JSONObject result = new JSONObject(evalString("return JSON.stringify(v19VerifyDurableSync());"));
+        assertTrue("Phase 0 tests must leave the native journal synchronized: " + result, result.getBoolean("ok"));
+        assertEquals("synced", result.getString("status"));
     }
 
     private WebView findWebView(View view) {
