@@ -17,7 +17,88 @@
 (function(){
   if(window.__LH_V19_RESTORE_UI__) return;
   window.__LH_V19_RESTORE_UI__ = true;
-  window.v19OpenRestoreBackup = function(){ document.getElementById('v19RestoreBackupModal').classList.remove('hidden'); };
-  window.v19CloseRestoreBackup = function(){ document.getElementById('v19RestoreBackupModal').classList.add('hidden'); };
+
+  var pendingText = null;
+  var pendingLeadCount = 0;
+  var modal = document.getElementById('v19RestoreBackupModal');
+  var input = document.getElementById('v19RestoreBackupInput');
+  var status = document.getElementById('v19RestoreBackupStatus');
+  var confirmButton = document.getElementById('v19RestoreBackupConfirm');
+
+  function resetRestore(){
+    pendingText = null;
+    pendingLeadCount = 0;
+    if(input) input.value = '';
+    if(status) status.textContent = '';
+    if(confirmButton) confirmButton.disabled = true;
+  }
+
+  window.v19OpenRestoreBackup = function(){
+    resetRestore();
+    if(modal) modal.classList.remove('hidden');
+  };
+
+  window.v19CloseRestoreBackup = function(){
+    if(modal) modal.classList.add('hidden');
+    resetRestore();
+  };
+
+  if(input){
+    input.addEventListener('change', function(){
+      resetRestore();
+      var file = input.files && input.files[0];
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onload = function(){
+        try {
+          var text = String(reader.result || '');
+          var restored = window.v19ParseBackupText(text);
+          pendingText = text;
+          pendingLeadCount = restored.leads.length;
+          status.textContent = 'Validated backup: ' + pendingLeadCount + ' lead(s).';
+          confirmButton.disabled = false;
+        } catch(err){
+          status.textContent = 'Restore rejected: ' + (err && err.message ? err.message : err);
+          confirmButton.disabled = true;
+        }
+      };
+      reader.onerror = function(){
+        status.textContent = 'Could not read that backup file.';
+        confirmButton.disabled = true;
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  if(confirmButton){
+    confirmButton.addEventListener('click', function(){
+      if(!pendingText) return;
+      showDangerConfirm({
+        title: 'Restore Lead Hopper backup?',
+        textHtml: 'This will replace the current local state with the validated backup containing <b>' + pendingLeadCount + ' lead(s)</b>.',
+        confirmLabel: 'Restore Backup',
+        onConfirm: function(){
+          try { window.v19ApplyBackupText(pendingText, true); }
+          catch(err){ showToast('Restore failed. Current state was not changed: ' + (err && err.message ? err.message : err), [], 6500); }
+        }
+      });
+    });
+  }
+
+  var menu = document.querySelector('#v13MenuOverlay .v13-menu');
+  if(menu && !document.getElementById('v19RestoreBackupMenu')){
+    var restoreButton = document.createElement('button');
+    restoreButton.className = 'v13-menu-item';
+    restoreButton.id = 'v19RestoreBackupMenu';
+    restoreButton.textContent = '⇩ Restore Full Backup';
+    restoreButton.addEventListener('click', function(){
+      try { v13CloseMenu(); } catch(_e) {}
+      window.v19OpenRestoreBackup();
+    });
+    var buttons = Array.prototype.slice.call(menu.querySelectorAll('.v13-menu-item'));
+    var backupButton = buttons.filter(function(b){ return b.textContent.indexOf('Backup / Export') >= 0; })[0];
+    if(backupButton && backupButton.parentNode) backupButton.parentNode.insertBefore(restoreButton, backupButton.nextSibling);
+    else menu.appendChild(restoreButton);
+  }
 })();
 </script>
