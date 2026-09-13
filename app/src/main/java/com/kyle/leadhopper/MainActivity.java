@@ -114,6 +114,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean commitSnapshot(long generation) {
             try { snapshots.commit(generation); return true; } catch(Exception e) { return false; }
         }
+        @JavascriptInterface public boolean abortSnapshot(long generation) {
+            try { snapshots.abort(generation); return true; } catch(Exception e) { return false; }
+        }
         @JavascriptInterface public void saveText(String filename, String text, String mime) {
             saveTextWithId(java.util.UUID.randomUUID().toString(), filename, text, mime);
         }
