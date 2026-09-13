@@ -2,6 +2,10 @@
 
 This file is the durable product/test contract for Lead Hopper. The Android Torture Lab should defend these behaviors before a build is treated as stable. When product behavior changes deliberately, update this contract and the tests together.
 
+## Stabilization rule
+
+The current stabilization cycle is a preservation-first release. Existing green calling behavior is frozen while data survival, compatibility, shell/layout, and safety defects are repaired. Do not casually redesign or rewrite working Hopper behavior while fixing unrelated defects.
+
 ## Core calling workflow
 
 - Lead Hopper is a local-first, one-lead-at-a-time calling station, not an autodialer or predictive dialer.
@@ -38,14 +42,15 @@ A build fails the contract if closing, backgrounding, reloading, process death, 
 
 Boot order is **load -> migrate/backfill -> validate -> render -> save migrated state**. No bootstrap patch may save default state before persisted state has been loaded.
 
-Storage failures must be visible. The UI must never imply success when durable storage failed.
+Storage failures must be visible. The UI must never imply success when durable storage failed. A failed save must not leave the user working against state that exists only in memory while the durable copy remains older.
 
 ## Import, replace, backup, and export
 
 - Merge is the safe default import behavior.
 - Replace must be explicit and must preserve permanent suppression.
 - Replace must not orphan linked schedule/history records through unnecessary ID churn.
-- Full backup JSON must actually be restorable as full application state.
+- Full backup JSON must be a versioned full-state snapshot and must actually be restorable as full application state.
+- Restore must validate a backup before changing anything and must be atomic: malformed or unsavable backups leave the current app state unchanged.
 - Activity CSV and Daily Report use Android's native save bridge.
 - End Session and full Backup/Export must use the same reliable native/shared save path.
 - CSV generation must quote correctly and must not create spreadsheet-formula execution hazards.
@@ -64,12 +69,12 @@ When one normalized phone number is attached to multiple distinct names:
 4. Display the alphabetically first person as the primary visible name.
 5. Immediately beside that name, show a small `+N` badge where `N` is the number of additional names sharing that phone number.
 6. The `+N` badge appears **only** when the number has two or more distinct names. Ordinary one-name/one-number leads show no extra badge or empty placeholder.
-7. Tapping the badge opens a compact popover/sheet listing the other names in the cluster. Selecting another name switches the active identity while retaining the shared phone number.
+7. Tapping the badge opens a compact popover/sheet that **only lists the other names for reference**. It does not switch the active lead/person and cannot change which person receives notes, callbacks, appointments, history, email, or address edits.
 8. Person-specific notes, history, appointment identity, email, and address remain attached to the individual lead unless explicitly changed.
-9. Phone-level safety propagates across the cluster: **DNC and Wrong Number apply to the normalized phone number across every name sharing it.**
-10. Callback/appointment ownership remains attached to the selected person unless a future product decision explicitly changes that rule.
+9. **DNC is phone-wide** and applies to every name sharing the normalized number. **Wrong Number remains person + phone specific**, so a wrong-name record does not automatically suppress a different person who legitimately uses the same number.
+10. Callback/appointment ownership remains attached to the active person unless a future product decision explicitly changes that rule.
 
-Example: Bob Smith, Mary Smith, and Susan Carter share 555-1234. The default card displays `Susan Carter  +2`; tapping `+2` reveals Bob Smith and Mary Smith.
+Example: Bob Smith, Mary Smith, and Susan Carter share 555-1234. The default card displays `Susan Carter  +2`; tapping `+2` reveals Bob Smith and Mary Smith as informational names only.
 
 ## Hopper visual contract
 
@@ -84,7 +89,7 @@ The primary calling dock is deliberately opinionated:
 - Bottom controls must remain reachable above safe-area and dock padding; max scroll may never terminate with controls hidden beneath the dock.
 - Modals must fit/scroll on small screens and with the software keyboard visible.
 - No orphan Close/Save controls or malformed body-level action fragments.
-- Header/branding must remain legible at phone widths instead of collapsing to a single letter or disappearing.
+- **All phone layouts use the existing approved full-color Lead Hopper logo as the header brand element instead of a squeezed text title.** Do not redesign the logo or alter the locked icon/monoglyph assets while making this header change.
 - Critical touch targets should meet the 48dp target wherever practical.
 - Modal focus must not escape to background calling controls.
 
@@ -113,9 +118,10 @@ Activity/history must not silently truncate business records.
 - Safe Browsing remains enabled.
 - External `tel:`, `mailto:`, `http:`, and `https:` intents are handed to Android appropriately.
 - File import uses Android's document picker.
-- Text/HTML/CSV export uses Android's create-document flow.
+- Text/HTML/CSV/JSON export uses Android's create-document flow.
 - Hardware back must not strand the user on SPA pages; app-level navigation must provide deterministic escape paths.
 - The release icon/monoglyph remains locked to the approved asset and certificate identity.
+- The declared minimum API is a real compatibility promise: the app must execute its production JavaScript on the minimum supported WebView rather than merely install there.
 
 ## Torture Lab expectations
 
@@ -125,6 +131,8 @@ Every serious build should be subjected to:
 - real packaged WebView instrumentation
 - persistence/reload regression fixtures
 - deterministic queue/callback/appointment contract tests
+- backup -> wipe -> restore -> compare round-trip testing
+- forced storage-write failure/rollback testing
 - process death/relaunch
 - random Monkey input and logcat crash/ANR scanning
 - multiple viewport sizes/densities
