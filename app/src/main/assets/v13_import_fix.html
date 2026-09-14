@@ -1,39 +1,100 @@
 <style id="v13ImportFixStyles">
-#importModal{z-index:10050!important}
+#importModal{z-index:10050!important;overflow:auto!important}
+#importModal .modal-card{max-height:calc(100dvh - 24px)!important;overflow:auto!important}
+#v13MenuOverlay.hidden{display:none!important}
+#v13MenuOverlay:not(.hidden){display:flex!important;pointer-events:auto!important}
 </style>
 <script id="v13ImportFixScript">
 (function(){
   function showImportModal(){
     var modal=document.getElementById('importModal');
-    if(!modal){
-      try{showToast('Import window is unavailable. Please restart Lead Hopper.',[],2600);}catch(e){}
-      return false;
-    }
+    if(!modal){try{showToast('Import window is unavailable. Please restart Lead Hopper.',[],2600);}catch(e){}return false;}
     var menu=document.getElementById('v13MenuOverlay');
-    if(menu) menu.classList.add('hidden');
+    if(menu)menu.classList.add('hidden');
     modal.classList.remove('hidden');
     modal.style.display='flex';
     modal.style.zIndex='10050';
     var format=document.getElementById('importFormat');
-    if(format && !format.value) format.value='csv';
+    if(format&&!format.value)format.value='csv';
     return true;
   }
   window.openImport=showImportModal;
-  var oldClose=window.closeImport;
-  window.closeImport=function(){
-    var modal=document.getElementById('importModal');
-    if(modal){modal.classList.add('hidden');modal.style.display='';}
-    else if(typeof oldClose==='function') oldClose();
+  window.closeImport=function(){var modal=document.getElementById('importModal');if(modal){modal.classList.add('hidden');modal.style.display='';}};
+
+  window.v13OpenMenu=function(){var overlay=document.getElementById('v13MenuOverlay');if(!overlay)return false;overlay.classList.remove('hidden');overlay.style.display='flex';return true;};
+  window.v13CloseMenu=function(){var overlay=document.getElementById('v13MenuOverlay');if(!overlay)return false;overlay.classList.add('hidden');overlay.style.display='';return true;};
+  var menuBtn=document.getElementById('menuBtn');
+  if(menuBtn&&!menuBtn.dataset.v13ImportMenuFix){menuBtn.dataset.v13ImportMenuFix='1';menuBtn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.v13OpenMenu();},true);}
+
+  function contactKey(l){
+    var phone=cleanPhone(l&&l.phone);
+    var first=safeText(l&&l.firstName).trim().toLowerCase();
+    var last=safeText(l&&l.lastName).trim().toLowerCase();
+    if(phone||first||last)return phone+'|'+first+'|'+last;
+    return '';
+  }
+  function freshLead(raw){var source=Object.assign({},raw||{});delete source.id;return normalizeLead(source);}
+  function preserveSuppression(l){
+    var phone=cleanPhone(l.phone),sup=state.suppression||{dnc:[],wrongNumbers:[]};
+    if(phone&&(sup.dnc||[]).some(function(x){return cleanPhone(x.phone)===phone;})){l.disposition='DNC';l.nextEligibleAt=null;}
+    else if(phone&&(sup.wrongNumbers||[]).some(function(x){return cleanPhone(x.phone)===phone;})){l.disposition='Wrong Number';l.nextEligibleAt=null;}
+    return l;
+  }
+  function uniquePeople(rows){
+    var seen=new Set(),out=[];
+    rows.forEach(function(l,i){var key=contactKey(l)||('blank:'+i+':'+l.id);if(!seen.has(key)){seen.add(key);out.push(l);}});
+    return out;
+  }
+
+  var importBusy=false;
+  window.doImport=function(){
+    if(importBusy)return false;
+    var fmt=(document.getElementById('importFormat')||{}).value||'csv';
+    var mode=(document.getElementById('importMode')||{}).value||'merge';
+    var text=document.getElementById('importText');
+    var txt=text?String(text.value||'').trim():'';
+    if(!txt){showToast('Choose a file or paste lead data first.',[],2200);return false;}
+    importBusy=true;
+    var before=JSON.stringify(state);
+    try{
+      var raw=fmt==='json'?JSON.parse(txt):parseCSV(txt);
+      if(!Array.isArray(raw))throw new Error('Import must contain a list of leads.');
+      var incoming=uniquePeople(raw.map(freshLead).map(preserveSuppression));
+      var current=Array.isArray(state.leads)?state.leads:[];
+      var oldByKey=new Map();
+      current.forEach(function(l){var k=contactKey(l);if(k&&!oldByKey.has(k))oldByKey.set(k,l);});
+      if(mode==='replace'){
+        incoming=incoming.map(function(l){
+          var old=oldByKey.get(contactKey(l));
+          if(old){l.id=old.id;l.calls=old.calls||[];l.history=old.history||[];l.notes=old.notes||'';l.disposition=old.disposition||l.disposition||'New';l.nextEligibleAt=old.nextEligibleAt||null;}
+          return preserveSuppression(l);
+        });
+        state.leads=incoming;state.currentIndex=0;state.cursorLeadId=incoming[0]?incoming[0].id:null;state.holdLeadId=null;state.overrideLeadId=null;state.prevStack=[];resetAdvance();
+      }else{
+        var keys=new Set(current.map(contactKey).filter(Boolean));
+        incoming.forEach(function(l){var k=contactKey(l);if(!k||!keys.has(k)){state.leads.push(l);if(k)keys.add(k);}});
+        if(!state.cursorLeadId&&state.leads[0])state.cursorLeadId=state.leads[0].id;
+      }
+      addActivity({type:'Import',detail:(mode==='replace'?'Imported ':'Merged ')+incoming.length+' rows'});
+      saveAll();
+      closeImport();
+      if(typeof applyV13LayoutOrder==='function')applyV13LayoutOrder();
+      renderAll();
+      showToast((mode==='replace'?'Imported ':'Merged ')+incoming.length+' rows; '+state.leads.length+' total leads.',[],3000);
+      return true;
+    }catch(e){
+      state=JSON.parse(before);
+      try{renderAll();}catch(_e){}
+      showToast('Import failed safely: '+(e&&e.message?e.message:String(e)),[],5000);
+      return false;
+    }finally{importBusy=false;}
   };
+  try{doImport=window.doImport;}catch(_e){}
+
   document.addEventListener('click',function(e){
-    var btn=e.target&&e.target.closest?e.target.closest('button'):null;
-    if(!btn) return;
+    var btn=e.target&&e.target.closest?e.target.closest('button'):null;if(!btn)return;
     var label=(btn.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
-    if(label==='import leads' || label.endsWith(' import leads')){
-      e.preventDefault();
-      e.stopPropagation();
-      showImportModal();
-    }
+    if(label==='import leads'||label.endsWith(' import leads')){e.preventDefault();e.stopPropagation();showImportModal();}
   },true);
 })();
 </script>
