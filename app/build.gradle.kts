@@ -10,7 +10,7 @@ android {
         applicationId = "com.kyle.leadhopper"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
+        versionCode = 101
         versionName = "1.7.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
