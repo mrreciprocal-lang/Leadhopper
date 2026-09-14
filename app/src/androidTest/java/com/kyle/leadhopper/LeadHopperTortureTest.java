@@ -131,7 +131,7 @@ public class LeadHopperTortureTest {
     }
 
     @Test
-    public void hopperButtonsAreTrueFiftyFiftyAndEqualHeight() throws Exception {
+    public void hopperButtonsAreFiftyFiftyAndThreeQuarterHeight() throws Exception {
         seedTwoCallableLeads();
         String json = evalString(
                 "const r=id=>{const x=document.getElementById(id).getBoundingClientRect();return {x:x.x,y:x.y,w:x.width,h:x.height}};" +
@@ -145,16 +145,53 @@ public class LeadHopperTortureTest {
         JSONObject appt = o.getJSONObject("appt");
 
         double eps = 1.1;
+        double targetHeight = call.getDouble("h") * 0.75;
         assertTrue("Call Now must span the dock", call.getDouble("w") > ni.getDouble("w") * 1.8);
         assertTrue("NI and No Answer must be equal width", Math.abs(ni.getDouble("w") - no.getDouble("w")) <= eps);
         assertTrue("Callback and Appointment must be equal width", Math.abs(cb.getDouble("w") - appt.getDouble("w")) <= eps);
         assertTrue("Common action rows must use same half width", Math.abs(ni.getDouble("w") - cb.getDouble("w")) <= eps);
-        assertTrue("NI height must equal Call Now", Math.abs(ni.getDouble("h") - call.getDouble("h")) <= eps);
-        assertTrue("No Answer height must equal Call Now", Math.abs(no.getDouble("h") - call.getDouble("h")) <= eps);
-        assertTrue("Callback height must equal Call Now", Math.abs(cb.getDouble("h") - call.getDouble("h")) <= eps);
-        assertTrue("Appointment height must equal Call Now", Math.abs(appt.getDouble("h") - call.getDouble("h")) <= eps);
+        assertTrue("NI height must be three quarters of Call Now", Math.abs(ni.getDouble("h") - targetHeight) <= 1.5);
+        assertTrue("No Answer height must be three quarters of Call Now", Math.abs(no.getDouble("h") - targetHeight) <= 1.5);
+        assertTrue("Callback height must be three quarters of Call Now", Math.abs(cb.getDouble("h") - targetHeight) <= 1.5);
+        assertTrue("Appointment height must be three quarters of Call Now", Math.abs(appt.getDouble("h") - targetHeight) <= 1.5);
         assertTrue("NI/No Answer must share row", Math.abs(ni.getDouble("y") - no.getDouble("y")) <= eps);
         assertTrue("Callback/Appointment must share row", Math.abs(cb.getDouble("y") - appt.getDouble("y")) <= eps);
+    }
+
+    @Test
+    public void hamburgerWorksBeforeAndAfterImportAndReload() throws Exception {
+        seedTwoCallableLeads();
+        String result = evalString(
+                "v13OpenMenu();" +
+                        "const first=!document.getElementById('v13MenuOverlay').classList.contains('hidden');" +
+                        "v13CloseMenu();openImport();" +
+                        "document.getElementById('importFormat').value='csv';" +
+                        "document.getElementById('importMode').value='merge';" +
+                        "document.getElementById('importText').value='firstName,lastName,phone,email,address,city,state,zip\\nGamma,Gable,3175550110,g@example.com,3 G St,Indianapolis,IN,46203';" +
+                        "const imported=doImport();v13OpenMenu();" +
+                        "const second=!document.getElementById('v13MenuOverlay').classList.contains('hidden');" +
+                        "return (first&&second&&imported&&state.leads.some(x=>x.firstName==='Gamma'))?'ok':'bad';"
+        );
+        assertEquals("ok", result);
+        evalRaw("location.reload();return true;");
+        waitForJs("return document.readyState==='complete' && typeof state!=='undefined' && !!document.getElementById('menuBtn');", 12_000);
+        assertEquals("ok", evalString("v13OpenMenu();return !document.getElementById('v13MenuOverlay').classList.contains('hidden')?'ok':'bad';"));
+    }
+
+    @Test
+    public void importPreservesDistinctPeopleSharingOnePhone() throws Exception {
+        seedTwoCallableLeads();
+        String result = evalString(
+                "openImport();document.getElementById('importFormat').value='csv';document.getElementById('importMode').value='merge';" +
+                        "document.getElementById('importText').value='firstName,lastName,phone,email,address,city,state,zip\\nBob,Smith,3175550190,bob@example.com,10 Main St,Indianapolis,IN,46201\\nMary,Smith,3175550190,mary@example.com,11 Main St,Indianapolis,IN,46201';" +
+                        "doImport();" +
+                        "const same=state.leads.filter(x=>cleanPhone(x.phone)==='3175550190');" +
+                        "return JSON.stringify({count:same.length,names:same.map(x=>x.firstName).sort()});"
+        );
+        JSONObject o = new JSONObject(result);
+        assertEquals(2, o.getInt("count"));
+        assertEquals("Bob", o.getJSONArray("names").getString(0));
+        assertEquals("Mary", o.getJSONArray("names").getString(1));
     }
 
     @Test
