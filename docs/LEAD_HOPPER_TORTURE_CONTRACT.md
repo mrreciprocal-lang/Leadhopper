@@ -45,6 +45,9 @@ Storage failures must be visible. The UI must never imply success when durable s
 - Merge is the safe default import behavior.
 - Replace must be explicit and must preserve permanent suppression.
 - Replace must not orphan linked schedule/history records through unnecessary ID churn.
+- Import parsing/validation must complete before committed application state is replaced.
+- A failed import must leave the pre-import state usable and must never strand the hamburger menu or navigation shell.
+- After import success or failure, process kill/relaunch must still leave the hamburger menu functional.
 - Full backup JSON must actually be restorable as full application state.
 - Activity CSV and Daily Report use Android's native save bridge.
 - End Session and full Backup/Export must use the same reliable native/shared save path.
@@ -78,7 +81,7 @@ The primary calling dock is deliberately opinionated:
 - Call Now occupies a full row by itself and is the most prominent action.
 - Row 2: **Not Interested** left, **No Answer** right, exact 50/50 split.
 - Row 3: **Callback** left, **Quote Appointment** right, exact 50/50 split.
-- Those four common-action buttons are exactly the same height as Call Now at both normal and short-screen breakpoints.
+- Those four common-action buttons are exactly **three-quarters the height of Call Now** at both normal and short-screen breakpoints, and exactly equal to one another.
 - DNC / No English / Wrong Number / custom-plus controls remain secondary.
 - The calling dock must be visible on Hopper and hidden on All Leads, Schedule, Activity & Reports, and full-screen/modal management surfaces where it would cover content.
 - Bottom controls must remain reachable above safe-area and dock padding; max scroll may never terminate with controls hidden beneath the dock.
@@ -125,6 +128,7 @@ Every serious build should be subjected to:
 - real packaged WebView instrumentation
 - persistence/reload regression fixtures
 - deterministic queue/callback/appointment contract tests
+- import success, import failure, menu recovery, and process-relaunch regression tests
 - process death/relaunch
 - random Monkey input and logcat crash/ANR scanning
 - multiple viewport sizes/densities
