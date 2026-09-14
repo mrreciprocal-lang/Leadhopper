@@ -63,9 +63,9 @@ jobs:
               assert selector in layout
           PY
 
-      - name: Validate 1.7.7 build 26 locked monoglyph
+      - name: Validate 1.7.7 build 101 locked monoglyph
         run: |
-          grep -q 'versionCode = 26' app/build.gradle.kts
+          grep -q 'versionCode = 101' app/build.gradle.kts
           grep -q 'versionName = "1.7.7"' app/build.gradle.kts
           grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' app/src/main/AndroidManifest.xml
@@ -81,7 +81,7 @@ jobs:
           test -s app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
           grep -q '0a566d5d1ceefe128cb8740fbbe2e0dfc4b7293b5942fa81257b0d8eedac5bb1' app/icon-src/v174/MONOGLYPH_LOCK_RECORD.txt
           grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
-          echo 'Lead Hopper 1.7.7 build 26 with corrected three-quarter-height Hopper actions present'
+          echo 'Lead Hopper 1.7.7 build 101 with corrected three-quarter-height Hopper actions present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
