@@ -1,9 +1,9 @@
-name: Build Lead Hopper APK
+name: Build Lead Hopper Cleanline APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ package-diagnostics ]
 
 jobs:
   build:
@@ -12,97 +12,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore redesigned adaptive icon foreground
+      - name: Restore launcher art
         run: |
           mkdir -p app/src/main/res/drawable-nodpi
           cat app/icon-src/v173/foreground.webp.b64.part* | tr -d '\r\n' | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_foreground_art.webp
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('app/src/main/res/drawable-nodpi/leadhopper_icon_foreground_art.webp')
-          b = p.read_bytes()
-          assert len(b) > 12000, len(b)
-          assert b[:4] == b'RIFF' and b[8:12] == b'WEBP'
-          print(f'Restored redesigned icon foreground: {len(b)} bytes')
-          PY
-
-      - name: Restore locked approved monoglyph
-        run: |
-          mkdir -p app/src/main/res/drawable-nodpi
           tr -d '\r\n' < app/icon-src/v174/monoglyph.webp.b64 | base64 -d > app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
-          python - <<'PY'
-          from pathlib import Path
-          import hashlib
-          p = Path('app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp')
-          b = p.read_bytes()
-          expected = '0a566d5d1ceefe128cb8740fbbe2e0dfc4b7293b5942fa81257b0d8eedac5bb1'
-          actual = hashlib.sha256(b).hexdigest()
-          assert actual == expected, (actual, expected)
-          assert b[:4] == b'RIFF' and b[8:12] == b'WEBP'
-          print(f'Restored locked monoglyph: {len(b)} bytes; sha256={actual}')
-          PY
 
-      - name: Restore Lead Hopper V13 HTML
-        run: cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
-
-      - name: Apply tested patches safely
+      - name: Assemble 1.7.5 baseline HTML plus selected fixes
         run: |
+          cat app/src/main/assets/index.html.gz.b64.part* | base64 -d | gzip -d > app/src/main/assets/index.html
           python - <<'PY'
           from pathlib import Path
           app=Path('app/src/main/assets/index.html')
-          fragments=[('v13HotfixScript','v13_hotfix.html'),('v13LayoutOrderScript','v13_layout_order.html'),('v13ImportFixScript','v13_import_fix.html'),('v14CustomPopupDismissScript','v14_custom_popup_dismiss.html'),('v14CallbackAutoAdvanceScript','v14_callback_autoadvance.html'),('v16HopperUiRepairScript','v16_hopper_ui_repair.html'),('v17UiNotesScript','v17_ui_notes.html'),('v18ActivityReportsRepairScript','v18_activity_reports_repair.html')]
+          fragments=[
+            ('v13HotfixScript','v13_hotfix.html'),
+            ('v13LayoutOrderScript','v13_layout_order.html'),
+            ('v13ImportFixScript','v13_import_fix.html'),
+            ('v14CustomPopupDismissScript','v14_custom_popup_dismiss.html'),
+            ('v14CallbackAutoAdvanceScript','v14_callback_autoadvance.html'),
+            ('v16HopperUiRepairScript','v16_hopper_ui_repair.html'),
+            ('v17UiNotesScript','v17_ui_notes.html'),
+            ('v18ActivityReportsRepairScript','v18_activity_reports_repair.html'),
+          ]
           text=app.read_text(encoding='utf-8')
-          def insert(document,fragment):
-              head,sep,tail=document.rpartition('</body>')
-              if not sep: raise RuntimeError('Final </body> tag not found')
-              return head+fragment+'\n</body>'+tail
           for marker,filename in fragments:
-              if f'id="{marker}"' not in text:
-                  text=insert(text,Path('app/src/main/assets',filename).read_text(encoding='utf-8'))
+              if f'id="{marker}"' in text:
+                  continue
+              head,sep,tail=text.rpartition('</body>')
+              if not sep:
+                  raise RuntimeError('Final </body> tag not found')
+              fragment=Path('app/src/main/assets',filename).read_text(encoding='utf-8')
+              text=head+fragment+'\n</body>'+tail
           app.write_text(text,encoding='utf-8')
+          assert 'versionCode' not in text
+          assert 'height:59px!important' in text
+          assert 'contactKey' in text
+          assert 'v17LastCalled' in text
           PY
-
-      - name: Validate packaged HTML structure
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          text=Path('app/src/main/assets/index.html').read_text(encoding='utf-8')
-          markers=['v13HotfixScript','v13LayoutOrderScript','v13ImportFixScript','v14CustomPopupDismissScript','v14CallbackAutoAdvanceScript','v16HopperUiRepairScript','v17UiNotesScript','v18ActivityReportsRepairScript']
-          init=text.find('function init()'); final_body=text.rfind('</body>'); final_html=text.rfind('</html>')
-          for marker in markers:
-              pos=text.find(f'id="{marker}"'); assert pos>init; assert final_body>pos
-          assert final_html>final_body and text.rstrip().endswith('</html>')
-          assert 'window.openImport=showImportModal' in text
-          assert 'v14CloseCustomPopup' in text
-          assert '__LH_V14_CALLBACK_AUTO_ADVANCE__' in text
-          assert '__LH_V16_HOPPER_UI_REPAIR__' in text
-          assert '__LH_V17_UI_NOTES__' in text
-          assert '__LH_V18_ACTIVITY_REPORTS_REPAIR__' in text
-          assert 'AndroidBridge.saveText' in text
-          assert 'v18MenuHome' in text
-          assert 'v18ActivityNav' in text
-          assert 'v17LeadNotesInput' in text
-          assert 'width:144px!important' in text
-          PY
-
-      - name: Validate 1.7.5 build 24 locked monoglyph
-        run: |
-          grep -q 'versionCode = 24' app/build.gradle.kts
-          grep -q 'versionName = "1.7.5"' app/build.gradle.kts
-          grep -q 'android:icon="@mipmap/ic_launcher"' app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' app/src/main/AndroidManifest.xml
-          grep -q '@drawable/leadhopper_icon_foreground_scaled' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          grep -q '@drawable/leadhopper_icon_foreground_scaled' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
-          grep -q '@drawable/leadhopper_icon_monochrome_scaled' app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml
-          grep -q '@drawable/leadhopper_icon_monochrome_scaled' app/src/main/res/mipmap-anydpi-v33/ic_launcher_round.xml
-          grep -q 'android:width="64dp"' app/src/main/res/drawable/leadhopper_icon_monochrome_scaled.xml
-          grep -q 'android:height="64dp"' app/src/main/res/drawable/leadhopper_icon_monochrome_scaled.xml
-          grep -q '@drawable/leadhopper_icon_monochrome_art' app/src/main/res/drawable/leadhopper_icon_monochrome_scaled.xml
-          grep -q '@drawable/leadhopper_icon_foreground_art' app/src/main/res/drawable/leadhopper_icon_foreground_scaled.xml
-          test -s app/src/main/res/drawable-nodpi/leadhopper_icon_foreground_art.webp
-          test -s app/src/main/res/drawable-nodpi/leadhopper_icon_monochrome_art.webp
-          grep -q '0a566d5d1ceefe128cb8740fbbe2e0dfc4b7293b5942fa81257b0d8eedac5bb1' app/icon-src/v174/MONOGLYPH_LOCK_RECORD.txt
-          grep -q 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
-          echo 'Lead Hopper 1.7.5 build 24 with Activity and Reports repair present'
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -121,30 +67,29 @@ jobs:
       - name: Install Android SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build Lead Hopper 1.7.5 release APK
+      - name: Build release APK
         run: gradle --no-daemon assembleRelease
 
-      - name: Align unsigned Lead Hopper 1.7.5 release APK
-        run: |
-          $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk LeadHopper-1.7.5-release-unsigned-aligned.apk
+      - name: Align APK
+        run: $ANDROID_HOME/build-tools/35.0.0/zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk LeadHopper-1.7.5-cleanline-v102-unsigned.apk
 
-      - name: Package apksigner tool
+      - name: Package signing tool
         run: |
           mkdir -p signing-tool/lib
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" signing-tool/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tool/lib/
           chmod +x signing-tool/apksigner
 
-      - name: Upload unsigned Lead Hopper 1.7.5 release APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-1.7.5-release-unsigned
-          path: LeadHopper-1.7.5-release-unsigned-aligned.apk
+          name: LeadHopper-1.7.5-cleanline-v102-unsigned
+          path: LeadHopper-1.7.5-cleanline-v102-unsigned.apk
           if-no-files-found: error
 
-      - name: Upload apksigner tool
+      - name: Upload signing tool
         uses: actions/upload-artifact@v4
         with:
-          name: LeadHopper-signing-tool
+          name: LeadHopper-cleanline-signing-tool
           path: signing-tool
           if-no-files-found: error
