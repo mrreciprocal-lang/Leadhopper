@@ -1,5 +1,7 @@
 <style id="v13ImportFixStyles">
 #importModal{z-index:10050!important}
+#v13MenuOverlay.hidden{display:none!important}
+#v13MenuOverlay:not(.hidden){display:flex!important;pointer-events:auto!important}
 </style>
 <script id="v13ImportFixScript">
 (function(){
@@ -19,12 +21,32 @@
     return true;
   }
   window.openImport=showImportModal;
-  var oldClose=window.closeImport;
   window.closeImport=function(){
     var modal=document.getElementById('importModal');
     if(modal){modal.classList.add('hidden');modal.style.display='';}
-    else if(typeof oldClose==='function') oldClose();
   };
+  window.v13OpenMenu=function(){
+    var overlay=document.getElementById('v13MenuOverlay');
+    if(!overlay)return false;
+    overlay.classList.remove('hidden');
+    overlay.style.display='flex';
+    return true;
+  };
+  window.v13CloseMenu=function(){
+    var overlay=document.getElementById('v13MenuOverlay');
+    if(!overlay)return false;
+    overlay.classList.add('hidden');
+    overlay.style.display='';
+    return true;
+  };
+  var menuBtn=document.getElementById('menuBtn');
+  if(menuBtn){
+    menuBtn.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      window.v13OpenMenu();
+    },true);
+  }
   document.addEventListener('click',function(e){
     var btn=e.target&&e.target.closest?e.target.closest('button'):null;
     if(!btn) return;
